@@ -1,0 +1,42 @@
+name: Issue conventions
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  issue:
+    if: github.event.issue.state == 'open'
+    runs-on: ubuntu-latest
+    steps:
+      # Issue 작업에서는 기본 브랜치의 신뢰된 코드만 실행한다.
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 형식 검사 및 오류 안내
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+          import { validateIssue } from './scripts/conventions.mjs';
+          const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const errors = validateIssue(event.issue.title, event.issue.body);
+          if (!errors.length) { console.log('이슈 컨벤션 검사 통과'); process.exit(0); }
+          function gh(args, input) {
+            const result = spawnSync('gh', args, { input, stdio: ['pipe', 'inherit', 'inherit'] });
+            if (result.status !== 0) throw new Error('GitHub 이슈 업데이트 실패');
+          }
+          const repo = process.env.GITHUB_REPOSITORY;
+          const number = String(event.issue.number);
+          const body = 'CONVENTION.md 형식을 확인해 주세요. 수정 후 이슈를 다시 열면 재검사합니다.\n\n' + errors.map(error => `- ${error}`).join('\n');
+          gh(['issue', 'comment', number, '--repo', repo, '--body-file', '-'], body);
+          gh(['issue', 'close', number, '--repo', repo, '--reason', 'not planned']);
+          process.exitCode = 1;
+          JS

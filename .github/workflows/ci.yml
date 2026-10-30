@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+
+  conventions:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: PR 제목과 본문 검사
+        run: node scripts/conventions.mjs pr-event
+      - name: PR 커밋 메시지 검사
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/conventions.mjs commits "$BASE_SHA" "$HEAD_SHA"
+      - name: 연결 이슈 존재 확인
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+          import { linkedIssues } from './scripts/conventions.mjs';
+          const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          for (const number of linkedIssues(event.pull_request.body)) {
+            const result = spawnSync('gh', ['api', `repos/${process.env.GITHUB_REPOSITORY}/issues/${number}`], { encoding: 'utf8' });
+            if (result.status !== 0) throw new Error(`이슈 #${number} 조회 실패`);
+            if (JSON.parse(result.stdout).pull_request) throw new Error(`#${number}은 이슈가 아니라 PR입니다.`);
+          }
+          JS

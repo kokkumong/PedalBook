@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4f0">
+  <meta name="description" content="나만의 페달보드를 만들어 보세요. 페달을 추가하고, 옮기고, 돌려보는 PedalBook 프로토타입.">
+  <title>PedalBook — 내 사운드의 자리</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e76c42'/%3E%3Crect x='10' y='6' width='12' height='20' rx='3' fill='%23fff'/%3E%3Ccircle cx='16' cy='11' r='2' fill='%23252a2b'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="PedalBook 홈"><span class="brand-mark"><i></i><i></i><i></i></span>pedalbook<span class="brand-dot">.</span></a>
+    <div class="header-center"><span class="live-dot"></span>나만의 사운드, 나만의 보드</div>
+    <div class="header-actions"><span class="prototype-tag">PROTOTYPE 01</span><button class="icon-button" id="help-button" aria-label="사용 방법" title="사용 방법">?</button></div>
+  </header>
+
+  <div class="project-bar">
+    <div class="project-title"><span class="project-icon" aria-hidden="true">▦</span><div><p class="eyebrow">YOUR WORKSPACE</p><input id="board-name" aria-label="보드 이름" maxlength="60" value="My first pedalboard" spellcheck="false"></div><span class="saved-state" id="save-state" role="status">저장 준비 중</span></div>
+    <div class="project-actions"><button class="button light" id="import-button"><span aria-hidden="true">↥</span> 불러오기</button><button class="button primary" id="export-button"><span aria-hidden="true">↧</span> 보드 내보내기</button><input type="file" id="import-file" accept="application/json,.json" hidden></div>
+  </div>
+
+  <main class="workspace">
+    <aside class="library panel" aria-label="페달 라이브러리">
+      <div class="panel-heading"><div><p class="eyebrow">BUILD YOUR SOUND</p><h1>페달 라이브러리<span id="catalog-count">5</span></h1></div></div>
+      <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" id="search" placeholder="브랜드, 모델 검색" aria-label="페달 검색"><kbd>/</kbd></label>
+      <div class="filters" id="filters" aria-label="카테고리 필터"></div>
+      <div class="library-subtitle"><span id="result-count"></span><span>클릭 또는 드래그로 추가</span></div>
+      <div id="catalog" class="catalog"></div>
+      <button class="custom-button" id="custom-button"><span aria-hidden="true">＋</span><span>내 페달 직접 만들기<small>이름과 규격만 있으면 충분해요</small></span><span aria-hidden="true">↗</span></button>
+      <p class="library-note">제조사 규격을 참고한 샘플 5종<br>그래픽은 배치 확인용 일러스트입니다.</p>
+    </aside>
+
+    <section class="editor" aria-label="페달보드 편집기">
+      <div class="editor-toolbar"><div class="editor-label"><span class="live-dot"></span>BOARD EDITOR</div><div class="toolbar-actions"><button class="icon-button" id="undo" title="되돌리기 (⌘/Ctrl+Z)" aria-label="되돌리기">↶</button><button class="icon-button" id="redo" title="다시 실행 (⌘/Ctrl+Shift+Z)" aria-label="다시 실행">↷</button><span class="toolbar-divider"></span><button class="toggle-button active" id="grid-toggle" aria-pressed="true">▦ <span>그리드</span></button><button class="toggle-button active" id="snap-toggle" aria-pressed="true">⌗ <span>5mm 스냅</span></button></div></div>
+      <div class="canvas-viewport" id="viewport">
+        <div class="canvas-caption"><span>TOP VIEW</span><span id="board-dimensions"></span></div>
+        <svg id="board-canvas" xmlns="http://www.w3.org/2000/svg" aria-label="페달을 드래그해 배치하는 보드. 페달을 선택한 뒤 방향키로도 이동할 수 있습니다." tabindex="0">
+          <defs>
+            <pattern id="dots" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="0" cy="0" r="0.6" fill="#777f7c" opacity=".28"/></pattern>
+            <linearGradient id="rail" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#484d4d"/><stop offset="12%" stop-color="#303636"/><stop offset="90%" stop-color="#292e2e"/><stop offset="100%" stop-color="#1d2222"/></linearGradient>
+            <filter id="pedal-shadow" x="-40%" y="-30%" width="180%" height="180%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".38"/></filter>
+            <filter id="board-shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#000" flood-opacity=".28"/></filter>
+          </defs>
+          <g id="scene"></g>
+        </svg>
+        <div class="canvas-bottom"><span><span class="orange-dot"></span>실제 규격 비율로 배치</span><div class="zoom-control"><button id="zoom-out" aria-label="축소">−</button><span id="zoom-value">100%</span><button id="zoom-in" aria-label="확대">＋</button><span class="zoom-divider"></span><button id="zoom-fit" title="보드 전체 보기" aria-label="보드 전체 보기">⛶</button></div></div>
+      </div>
+      <div class="board-status"><span id="pedal-count"></span><span id="warning-count"></span><span class="status-help"><kbd>R</kbd> 회전 <span>·</span> <kbd>Del</kbd> 삭제 <span>·</span> 방향키 이동</span></div>
+      <div class="workspace-tip"><span class="tip-symbol">✳</span><div><strong>머릿속의 사운드를, 눈앞의 보드로.</strong><p>왼쪽에서 페달을 골라보세요. 자유롭게 옮기고 돌려보며 나만의 조합을 만들 수 있어요.</p></div><span class="tip-number">01 / BUILD</span></div>
+    </section>
+
+    <aside class="inspector panel" aria-label="보드와 선택한 페달 설정">
+      <section class="settings-section"><p class="eyebrow">THE FOUNDATION</p><h2>보드 설정</h2><label class="field-label" for="board-preset">보드 사이즈</label><select id="board-preset"><option value="450,250">Compact · 450 × 250</option><option value="600,320" selected>Standard · 600 × 320</option><option value="800,400">Large · 800 × 400</option><option value="custom">직접 입력</option></select><form id="board-size-form" class="size-form"><label>가로 <span>mm</span><input type="number" id="board-width" min="150" max="1500" step="1" required value="600"></label><span class="size-cross">×</span><label>세로 <span>mm</span><input type="number" id="board-height" min="150" max="1000" step="1" required value="320"></label><button class="button light full" type="submit">규격 적용</button></form></section>
+      <section class="settings-section selection-section"><div class="selection-heading"><h2>선택한 페달</h2><span id="selection-badge" class="small-badge">SELECTED</span></div><div id="selection-content"></div></section>
+      <section class="next-feature"><span class="small-badge">UP NEXT</span><h3>좋은 배치 다음엔,<br>좋은 매물 찾기.</h3><p>뮬 매물 연결과 예상 중고 예산은<br>다음 단계에서 만나요.</p><span class="next-arrow" aria-hidden="true">↗</span></section>
+      <div class="local-note"><span class="live-dot"></span>이 브라우저에 자동 저장됩니다</div>
+    </aside>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="custom-dialog"><form id="custom-form"><div class="dialog-heading"><div><p class="eyebrow">MAKE IT YOURS</p><h2>내 페달 추가</h2></div><button type="button" class="icon-button" data-close="custom-dialog" aria-label="닫기">×</button></div><p class="dialog-description">카탈로그에 없어도 괜찮아요. 직접 잰 규격으로 배치해 보세요.</p><label class="field-label">페달 이름<input name="name" maxlength="40" required placeholder="예: My Overdrive"></label><div class="dialog-fields"><label class="field-label">가로 (mm)<input name="width" type="number" min="20" max="400" step="0.1" value="70" required></label><label class="field-label">세로 (mm)<input name="height" type="number" min="20" max="500" step="0.1" value="120" required></label><label class="field-label color-field">색상<input name="color" type="color" value="#aa95ca"></label></div><button type="submit" class="button primary full">보드에 추가하기 ＋</button></form></dialog>
+  <dialog id="help-dialog"><div class="dialog-heading"><div><p class="eyebrow">A LITTLE GUIDE</p><h2>보드 만드는 법</h2></div><button type="button" class="icon-button" data-close="help-dialog" aria-label="닫기">×</button></div><ol class="help-list"><li>라이브러리의 페달을 클릭하거나 보드로 드래그해 추가하세요.</li><li>보드 위 페달을 드래그해 위치를 바꿔보세요.</li><li>페달 선택 후 <kbd>R</kbd>로 회전, <kbd>Delete</kbd>로 삭제할 수 있어요.</li><li>방향키로 1mm, Shift + 방향키로 5mm 이동해요.</li><li>변경은 이 브라우저에 자동 저장돼요. JSON 파일로 내보내 다른 곳에서 불러올 수도 있어요.</li></ol><p class="help-note">프로토타입의 그래픽은 실제 제품 사진이 아닙니다. 케이블·잭 여유 공간은 별도로 확인해 주세요. 클라우드 저장과 뮬 연동은 아직 제공하지 않습니다.</p></dialog>
+</body>
+</html>
