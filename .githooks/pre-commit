@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+branch=$(git symbolic-ref --quiet --short HEAD || true)
+if [ "$branch" = main ]; then
+  echo 'main 직접 커밋은 금지합니다. feature 또는 dev 브랜치에서 작업하세요.' >&2
+  exit 1
+fi
+npm run verify
