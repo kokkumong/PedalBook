@@ -11,3 +11,6 @@ artifacts/
 playwright-report/
 test-results/
 *.sql.gz
+.next/
+out/
+*.tsbuildinfo

@@ -2,9 +2,9 @@
 
 커밋·브랜치·이슈·PR 규칙을 모았습니다. 사람과 Codex 등 코딩 에이전트가 같은 규칙을 따르며, 변경 이유와 검증 근거를 남깁니다. 에이전트 작업 지침은 [AGENTS.md](AGENTS.md)에서 이 문서를 필수로 참조합니다.
 
-> 현재 스택: Node.js ≥ 22 · HTML/CSS/JavaScript + SVG · 런타임 의존성 0개 · 빌드 없는 로컬 프로토타입
+> 현재 스택: Node.js ≥ 22.18 · Next.js 16 · React 19 · TypeScript · React Konva · Zod
 >
-> 개발 순서: 페달 배치 편집기 → 뮬 페이지 연결 → 참고 시세·예산 → 자동 수집·캐시. Next.js/React Konva·PostgreSQL·Redis는 후속 설계이며 아직 운영 스택이 아닙니다.
+> 개발 순서: 페달 배치 편집기 → 뮬 페이지 연결 → 참고 시세·예산 → 자동 수집·캐시. Next.js/React Konva 편집기와 수동 예산까지 구현했습니다. PostgreSQL·Redis·자동 수집은 후속 설계입니다.
 
 ## 1. 커밋 컨벤션
 
@@ -80,12 +80,12 @@ Conventional Commits의 타입 접두어를 사용합니다.
 
 | 검사 | 수행 내용 |
 |---|---|
-| CI / verify | Node 22, `npm ci` → `npm run verify` |
+| CI / verify | Node 22, `npm ci` → `npm run verify` → `npm run build` |
 | CI / conventions | PR 제목·본문·실제 이슈 연결 및 포함된 모든 커밋 형식 검사 |
 | 이슈 검사 | 제목 접두어, 본문·필수 절, 빈 항목 검사 |
 | 로컬 훅 | 커밋 전 verify/main 보호, 커밋 메시지 검사 |
 
-`verify`는 JavaScript 문법 검사와 로컬 테스트를 실행합니다. 타입스크립트 검사나 운영 DB 검증을 했다고 표기하지 않습니다. CI의 앱 테스트에서 실제 뮬 수집이나 외부 시세 API를 호출하지 않습니다. 컨벤션 검사는 연결 이슈 확인을 위해 GitHub API를 사용합니다. CI 파일 자체가 PR에서 변경되는 경우도 있으므로 저장소 관리자의 서버 보호 설정과 검토를 대체하지 않습니다.
+`verify`는 JavaScript 문법 검사, Next.js 경로 타입 생성·TypeScript 검사, 로컬 테스트를 실행합니다. UI·의존성·프레임워크 변경은 `npm run build`도 통과시킵니다. 운영 DB 검증을 했다고 표기하지 않습니다. CI의 앱 테스트에서 실제 뮬 수집이나 외부 시세 API를 호출하지 않습니다. 컨벤션 검사는 연결 이슈 확인을 위해 GitHub API를 사용합니다. CI 파일 자체가 PR에서 변경되는 경우도 있으므로 저장소 관리자의 서버 보호 설정과 검토를 대체하지 않습니다.
 
 이슈 템플릿과 이슈 이벤트 워크플로는 기본 브랜치에 반영된 뒤 GitHub에서 활성화됩니다. 최초 PR이 열린 상태에서는 PR 검사와 로컬 훅을 먼저 확인하고, 이슈 봇이 이미 운영 중인 것으로 표현하지 않습니다.
 
@@ -94,7 +94,7 @@ Conventional Commits의 타입 접두어를 사용합니다.
 - `.env`, `.env.*`, API 키, DB/Redis 접속 정보, 브라우저 세션·쿠키·인증 파일을 커밋하지 않습니다. `.env.example`은 비밀 없는 예시만 허용합니다.
 - 개인 보드 export, 수집 원본, DB dump, 브라우저 다운로드, 로그, 커버리지 등 실행 산출물은 저장소에 넣지 않습니다. 수집/출력 파일은 `data/`, `exports/`, `artifacts/` 등 무시되는 디렉터리에 저장합니다.
 - 테스트 fixture는 명시적으로 관리하는 소규모 합성/허용 데이터만 사용하고 토큰·연락처 등 개인 정보를 제거합니다.
-- 제조사 사진·PedalPlayground 자료는 사용 범위를 확인한 것만 도입합니다. 현재 프로토타입은 직접 작성한 SVG를 사용합니다.
+- 제조사 사진·PedalPlayground 자료는 사용 범위를 확인한 것만 도입합니다. 도입 자산과 사용 범위는 docs/ASSETS_AND_SEARCH.md 및 src/domain/photos.ts에 기록합니다. 현재 blueSky V2는 공식 보도용 사진이고 나머지는 자체 SVG 일러스트입니다.
 - 뮬 접근 정책·실제 DOM 확인 전에는 자동 수집을 활성화하지 않습니다. 차단 우회·프록시 회전·CAPTCHA 우회에 의존하지 않습니다.
 - 관측 호가, 사용자 입력 단가, 실제 체결 가격을 구분합니다. 자료가 없으면 임의 시세를 만들지 않습니다.
 
@@ -109,4 +109,4 @@ npm run verify
 npm run dev
 ```
 
-실행 화면: [http://127.0.0.1:3000](http://127.0.0.1:3000). 패키지 의존성은 없지만 `npm install`이 로컬 Git 훅을 설정합니다. 훅만 설정하려면 `npm run setup`을 실행합니다. 현재 제공하는 초기 DDL/이관/수집 예제는 별도 의존성과 외부 환경이 필요한 설계 예제이며 verify는 해당 연동을 실행하지 않습니다.
+실행 화면: [http://127.0.0.1:3000](http://127.0.0.1:3000). `npm install`이 패키지 의존성과 로컬 Git 훅을 설치합니다. 의존성 버전은 package.json과 package-lock.json에 함께 기록합니다. 훅만 설정하려면 `npm run setup`을 실행합니다. 현재 제공하는 초기 DDL/이관/수집 예제는 별도 의존성과 외부 환경이 필요한 설계 예제이며 verify는 해당 연동을 실행하지 않습니다.
