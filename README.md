@@ -2,7 +2,7 @@
 
 실제 규격으로 페달보드를 배치하고, 뮬 매물 찾기와 구매 예산을 함께 계획하는 웹 편집기입니다.
 
-현재 **Next.js·TypeScript·React Konva 배치 편집기, 뮬 장터 이동·검색어 복사, 수동 예산**까지 구현했습니다. 자동 시세 수집과 계정/서버 저장은 후속 단계입니다.
+현재 **Next.js·TypeScript·React Konva 배치 편집기, 뮬 판매중 검색·검색어 편집/복사, 수동 예산**까지 구현했습니다. 자동 시세 수집과 계정/서버 저장은 후속 단계입니다.
 
 ## 실행
 
@@ -31,9 +31,9 @@ npm run dev
 - [BOSS DS-1](https://www.boss.info/global/products/ds-1/specifications/), [CE-2W](https://www.boss.info/global/products/ce-2w/), [DD-8](https://www.boss.info/global/products/dd-8/), [TU-3](https://www.boss.info/global/products/tu-3/): 73 × 129mm
 - [Strymon blueSky V2](https://www.strymon.net/product/bluesky/): 101.6 × 114.3mm
 
-직접 작성한 SVG 일러스트를 사용합니다. 제조사 사진이나 PedalPlayground 이미지를 복제하지 않았습니다. 샘플 배치는 추천 신호 연결 순서가 아닙니다.
+blueSky V2는 Strymon 공식 보도용 정면 사진을 사용하고, BOSS 4종과 커스텀 페달은 직접 작성한 SVG 일러스트를 유지합니다. 이미지 출처·도입 상태는 [사진 및 검색 문서](docs/ASSETS_AND_SEARCH.md)에 기록합니다. 샘플 배치는 추천 신호 연결 순서가 아닙니다.
 
-검수된 시장 가격은 아직 없으므로 **시세 정보 없음**을 표시합니다. 직접 입력한 금액은 시장 시세와 구분합니다. 미상 가격을 0원으로 확정하지 않고 누락 개수로 표시하며, 보유 페달은 추가 구매 합계에서 제외합니다. 뮬 검색 파라미터는 미검증 상태이므로 장터 링크와 검색어 복사를 제공합니다.
+검수된 시장 가격은 아직 없으므로 **시세 정보 없음**을 표시합니다. 직접 입력한 금액은 시장 시세와 구분합니다. 미상 가격을 0원으로 확정하지 않고 누락 개수로 표시하며, 보유 페달은 추가 구매 합계에서 제외합니다. 브라우저에서 확인한 검색 조건으로 뮬의 판매중 이펙터 검색 결과를 엽니다. 검색어 수정과 판매중/전체 선택, 장터 첫 화면 및 복사 대안도 제공합니다.
 
 저장은 이 브라우저·동일 주소의 localStorage를 사용합니다. 주소/포트가 바뀌면 저장 공간도 달라지므로 다른 기기로 옮길 때는 JSON을 내보내세요. 계정·클라우드 저장은 아직 없습니다.
 
@@ -49,7 +49,7 @@ npm run build
 npm start
 ```
 
-`verify`는 JavaScript 문법, Next.js 경로 생성·TypeScript 타입, 29개 테스트를 검사합니다. 좌표/회전·이관·JSON 검증·저장 충돌/실패·가격 신선도·예산 계산을 확인합니다. CI는 운영 빌드도 실행합니다. DB DDL과 수집 예제의 실제 외부 연동은 검사하지 않습니다.
+`verify`는 JavaScript 문법, Next.js 경로 생성·TypeScript 타입, 33개 테스트를 검사합니다. 좌표/회전·이관·JSON 검증·저장 충돌/실패·가격 신선도·예산 계산을 확인합니다. CI는 운영 빌드도 실행합니다. DB DDL과 수집 예제의 실제 외부 연동은 검사하지 않습니다.
 
 ## 협업 규칙
 

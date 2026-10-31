@@ -4,6 +4,18 @@ import type { Pedal } from './catalog.ts';
 export const MULE_MARKET_URL = 'https://www.mule.co.kr/bbs/market/sell';
 export const searchPhrase = (pedal: Pedal) => `${pedal.brand === 'CUSTOM' ? '' : pedal.brand + ' '}${pedal.name}`.normalize('NFKC').replace(/\s+/g, ' ').trim();
 
+// Confirmed through Mule's public search UI on 2026-10-31.
+// Model-only defaults also find Korean brand spellings; the user can refine it.
+export const defaultMuleQuery = (pedal: Pedal) => pedal.name.normalize('NFKC').trim();
+export function muleSearchUrl(query: string, sellingOnly = true): string | null {
+  const term = query.normalize('NFKC').replace(/\s+/g, ' ').trim();
+  if (!term || term.length > 120) return null;
+  const url = new URL(MULE_MARKET_URL);
+  url.search = new URLSearchParams({ page: '1', map: 'list', mode: 'list', qf: 'title', qs: term,
+    ct1: '이펙터', sell_status: sellingOnly ? '판매중' : '', of: 'wdate', od: 'desc', andor: 'and', v: 'l' }).toString();
+  return url.toString();
+}
+
 export type MarketQuote = {
   pedalId: string;
   source: 'mule';

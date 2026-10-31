@@ -12,7 +12,7 @@ export type Pedal = {
   sourceUrl: string | null;
 };
 
-// Width × depth from manufacturer specifications. Artwork is original.
+// Width × depth from manufacturer specifications. Photos and original illustration fallbacks are managed separately.
 export const CATALOG: Pedal[] = [
   { id: 'boss-ds1', brand: 'BOSS', name: 'DS-1', subtitle: 'Distortion', category: '드라이브', widthMm: 73, heightMm: 129, color: '#e58e50', ink: '#372d24', style: 'compact', sourceUrl: 'https://www.boss.info/global/products/ds-1/specifications/' },
   { id: 'boss-ce2w', brand: 'BOSS', name: 'CE-2W', subtitle: 'Chorus', category: '모듈레이션', widthMm: 73, heightMm: 129, color: '#8fbcc8', ink: '#2d4b50', style: 'compact', sourceUrl: 'https://www.boss.info/global/products/ce-2w/' },

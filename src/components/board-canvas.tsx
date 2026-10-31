@@ -1,35 +1,29 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Stage, Layer, Group, Rect, Circle, Text, Line, Image as CanvasImage } from 'react-konva';
 import type Konva from 'konva';
 import { clampPosition, placementWarnings, viewportTransform } from '../domain/board.ts';
 import type { Board, BoardItem, Point } from '../domain/board.ts';
-import { pedalImage } from '../domain/artwork.ts';
+import { containImage } from '../domain/photos.ts';
+import { useCanvasPedalPhoto } from '../hooks/use-pedal-photo';
 
 type Props = { board: Board; selectedId: string | null; zoom: number; pan: { x: number; y: number }; grid: boolean; snap: boolean;
   onSelect: (id: string | null) => void; onMove: (id: string, point: Point) => void; onPan: (pan: { x: number; y: number }) => void;
   onSize: (size: { width: number; height: number }) => void; onDragging: (dragging: boolean) => void };
 
 function PedalNode({ item, board, selected, warning, snap, onSelect, onMove, onDragging }: { item: BoardItem; board: Board; selected: boolean; warning: boolean; snap: boolean; onSelect: Props['onSelect']; onMove: Props['onMove']; onDragging: Props['onDragging'] }) {
-  const [image, setImage] = useState<HTMLImageElement | undefined>();
-  const source = useMemo(() => pedalImage(item.pedal), [item.pedal]);
-  useEffect(() => {
-    let active = true; const img = new window.Image();
-    img.onload = () => { if (active) setImage(img); };
-    img.onerror = () => { if (active) setImage(undefined); };
-    img.src = source;
-    return () => { active = false; };
-  }, [source]);
+  const { image, isPhoto } = useCanvasPedalPhoto(item.pedal);
   const { widthMm: width, heightMm: height } = item.pedal;
+  const imageBounds = image && isPhoto ? containImage(image.width, image.height, width, height) : { x: 0, y: 0, width, height };
   return <Group name="pedal" id={item.instanceId} x={item.xMm} y={item.yMm} rotation={item.rotationDeg} offsetX={width / 2} offsetY={height / 2} draggable
     onMouseDown={event => { event.cancelBubble = true; onSelect(item.instanceId); }}
     onTouchStart={event => { event.cancelBubble = true; onSelect(item.instanceId); }}
     onDragStart={() => { onSelect(item.instanceId); onDragging(true); }}
     onDragMove={event => { const node = event.target; const point = clampPosition(item, board, { xMm: node.x(), yMm: node.y() }, snap); node.position({ x: point.xMm, y: point.yMm }); }}
     onDragEnd={event => { const node = event.target; const point = clampPosition(item, board, { xMm: node.x(), yMm: node.y() }, snap); onMove(item.instanceId, point); onDragging(false); }}>
-    <Rect width={width} height={height} fill={item.pedal.color} cornerRadius={4} shadowColor="#000" shadowBlur={6} shadowOffsetY={3} shadowOpacity={.3}/>
-    {image ? <CanvasImage image={image} width={width} height={height}/> : <Text text={item.pedal.name} y={height / 2 - 5} width={width} fontSize={9} align="center" fill={item.pedal.ink}/>}
+    <Rect width={width} height={height} fill={image && isPhoto ? 'transparent' : item.pedal.color} cornerRadius={4} shadowColor="#000" shadowBlur={6} shadowOffsetY={3} shadowOpacity={.3}/>
+    {image ? <CanvasImage image={image} {...imageBounds}/> : <Text text={item.pedal.name} y={height / 2 - 5} width={width} fontSize={9} align="center" fill={item.pedal.ink}/>}
     {item.owned && <Circle x={width - 6} y={height - 6} radius={2.5} fill="#b0cf9f" stroke="#2e4834" strokeWidth={.7}/>}
     {(selected || warning) && <Rect x={-4} y={-4} width={width + 8} height={height + 8} cornerRadius={6} stroke={selected ? '#ffb68d' : '#bd8362'} strokeWidth={selected ? 1.5 : 1} dash={selected ? undefined : [3, 3]} listening={false}/>}
     {selected && [[-4, -4], [width + 4, -4], [-4, height + 4], [width + 4, height + 4]].map(([x, y], i) => <Rect key={i} x={x - 1.5} y={y - 1.5} width={3} height={3} fill="#ffc19e" listening={false}/>)}
