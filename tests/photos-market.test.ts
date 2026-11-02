@@ -12,7 +12,7 @@ test('bundled photograph is the unmodified verified blueSky V2 source', () => {
   assert.equal(bytes.subarray(1, 4).toString(), 'PNG');
   assert.equal(bytes.readUInt32BE(16), 1000); assert.equal(bytes.readUInt32BE(20), 1100);
   assert.equal(createHash('sha256').update(bytes).digest('hex'), 'cc44f09909a487d9dfc430423996dfb7a7d31811a90729d9fd4d2cd00b5b1081');
-  assert.equal(Object.keys(PEDAL_PHOTOS).length, 1);
+  assert.equal(Object.keys(PEDAL_PHOTOS).length, 5);
 });
 test('existing saved boards receive photos by ID without changing dimensions or accepting imported URLs', () => {
   const board = sampleBoard(), oldJson = JSON.stringify(board);

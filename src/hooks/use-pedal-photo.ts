@@ -2,16 +2,17 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Pedal } from '../domain/catalog.ts';
-import { pedalPhoto } from '../domain/photos.ts';
+import { catalogPhoto, pedalPhoto } from '../domain/photos.ts';
 import { pedalImage } from '../domain/artwork.ts';
 
 export function usePedalPhoto(pedal: Pedal) {
   const photo = pedalPhoto(pedal);
   const fallback = pedalImage(pedal);
-  const [failed, setFailed] = useState<string | null>(null);
-  const source = photo && failed !== photo.src ? photo.src : fallback;
-  const fail = useCallback(() => setFailed(source), [source]);
-  return { source, isPhoto: source === photo?.src, photo, fail };
+  const [failed, setFailed] = useState<string[]>([]);
+  const candidates = [photo?.src, catalogPhoto('pedals', pedal.id)?.src].filter((s): s is string => !!s);
+  const source = candidates.find(s => !failed.includes(s)) ?? fallback;
+  const fail = useCallback(() => setFailed(current => current.includes(source) ? current : [...current, source]), [source]);
+  return { source, isPhoto: source !== fallback, photo, fail };
 }
 
 export function useCanvasPedalPhoto(pedal: Pedal) {

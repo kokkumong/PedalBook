@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CATALOG } from './catalog.ts';
+import { CATALOG, SOURCE_BOARDS, PEDALS_BY_ID } from './catalog.ts';
 import type { Pedal } from './catalog.ts';
 
 export const MAX_PEDALS = 100;
@@ -10,12 +10,12 @@ const color = z.string().regex(/^#[a-f\d]{6}$/i);
 const coordinate = z.number().finite().min(-5000).max(5000);
 
 const pedalSchema = z.object({
-  id: text(100), brand: text(40), name: text(40), subtitle: text(60), category: text(20),
-  widthMm: z.number().finite().min(20).max(400), heightMm: z.number().finite().min(20).max(500),
+  id: text(100), brand: text(80), name: text(160), subtitle: text(60), category: text(20),
+  widthMm: z.number().finite().min(1).max(2540), heightMm: z.number().finite().min(1).max(2540),
   color, ink: color.default('#302c35'), style: z.enum(['compact', 'tuner', 'wide', 'custom']).default('custom'),
   sourceUrl: z.string().nullable().default(null),
 }).transform((p): Pedal => {
-  const known = CATALOG.find(item => item.id === p.id);
+  const known = PEDALS_BY_ID.get(p.id);
   // Imported links never become arbitrary external destinations.
   return { ...p, sourceUrl: known?.sourceUrl ?? null, style: known?.style ?? 'custom', ink: known?.ink ?? '#302c35' };
 });
@@ -26,7 +26,8 @@ const itemSchema = z.object({
 }).refine(item => item.pedalId === item.pedal.id, '페달 ID와 규격 정보가 일치하지 않습니다.');
 const boardSchema = z.object({
   schemaVersion: z.literal(2), name: text(60),
-  widthMm: z.number().finite().min(150).max(1500), heightMm: z.number().finite().min(150).max(1000),
+  widthMm: z.number().finite().min(50).max(2540), heightMm: z.number().finite().min(50).max(2540),
+  modelId: text(100).optional(),
   items: z.array(itemSchema).max(MAX_PEDALS),
 }).refine(board => new Set(board.items.map(i => i.instanceId)).size === board.items.length, '페달 인스턴스 ID가 중복됩니다.');
 
@@ -111,7 +112,7 @@ export function updateItem(board: Board, instanceId: string, patch: Partial<Pick
   }) };
 }
 export function resizeBoard(board: Board, widthMm: number, heightMm: number): Board {
-  const next = parseBoard({ ...board, widthMm, heightMm });
+  const next = parseBoard({ ...board, widthMm, heightMm, modelId: undefined });
   return { ...next, items: next.items.map(item => ({ ...item, ...clampPosition(item, next, item) })) };
 }
 export function viewportTransform(board: Board, width: number, height: number, zoom: number, pan: { x: number; y: number }) {
@@ -120,4 +121,15 @@ export function viewportTransform(board: Board, width: number, height: number, z
 }
 export function screenToMm(point: { x: number; y: number }, transform: { x: number; y: number; scale: number }): Point {
   return { xMm: (point.x - transform.x) / transform.scale, yMm: (point.y - transform.y) / transform.scale };
+}
+
+export function selectBoardModel(board: Board, id: string): Board {
+  const model = SOURCE_BOARDS.get(id);
+  if (!model) throw new Error('보드 모델을 찾을 수 없어요.');
+  // Keep existing placement coordinates: smaller boards report overflow rather than silently moving pedals.
+  return parseBoard({ ...board, widthMm: model.widthMm, heightMm: model.heightMm, modelId: id });
+}
+export function boardModel(board: Board) {
+  const model = board.modelId ? SOURCE_BOARDS.get(board.modelId) : undefined;
+  return model && model.widthMm === board.widthMm && model.heightMm === board.heightMm ? model : undefined;
 }

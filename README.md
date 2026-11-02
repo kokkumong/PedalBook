@@ -15,7 +15,7 @@ npm run dev
 
 [http://127.0.0.1:3000](http://127.0.0.1:3000)에서 엽니다. 다른 포트는 `PORT=3001 npm run dev`로 지정합니다. 이전 SVG 프로토타입은 `npm run dev:prototype`으로 별도 실행할 수 있습니다.
 
-- 보드 크기 프리셋·직접 입력, 페달 5종 검색·카테고리 필터
+- 보드 크기 프리셋·직접 입력·제조사별 모델 선택, 전체 페달 검색·제조사 필터
 - 커스텀 페달 이름·크기·색상, 클릭/드래그 추가
 - 이동·90도 회전·복제·삭제·undo/redo, zoom/pan/fit, 그리드·5mm 스냅·겹침/경계 경고
 - 브라우저 자동 저장, 이전 보드 이관, JSON 내보내기/불러오기
@@ -31,7 +31,7 @@ npm run dev
 - [BOSS DS-1](https://www.boss.info/global/products/ds-1/specifications/), [CE-2W](https://www.boss.info/global/products/ce-2w/), [DD-8](https://www.boss.info/global/products/dd-8/), [TU-3](https://www.boss.info/global/products/tu-3/): 73 × 129mm
 - [Strymon blueSky V2](https://www.strymon.net/product/bluesky/): 101.6 × 114.3mm
 
-blueSky V2는 Strymon 공식 보도용 정면 사진을 사용하고, BOSS 4종과 커스텀 페달은 직접 작성한 SVG 일러스트를 유지합니다. 이미지 출처·도입 상태는 [사진 및 검색 문서](docs/ASSETS_AND_SEARCH.md)에 기록합니다. 샘플 배치는 추천 신호 연결 순서가 아닙니다.
+blueSky V2와 BOSS 4종은 공식 제품 사진을 우선 사용하며, 추가 카탈로그는 PedalPlayground 사진을 참조합니다. 커스텀 페달과 사진 오류는 자체 일러스트로 표시합니다. 이미지 출처·도입 상태는 [사진 및 검색 문서](docs/ASSETS_AND_SEARCH.md)에 기록합니다. 샘플 배치는 추천 신호 연결 순서가 아닙니다.
 
 검수된 시장 가격은 아직 없으므로 **시세 정보 없음**을 표시합니다. 직접 입력한 금액은 시장 시세와 구분합니다. 미상 가격을 0원으로 확정하지 않고 누락 개수로 표시하며, 보유 페달은 추가 구매 합계에서 제외합니다. 브라우저에서 확인한 검색 조건으로 뮬의 판매중 이펙터 검색 결과를 엽니다. 검색어 수정과 판매중/전체 선택, 장터 첫 화면 및 복사 대안도 제공합니다.
 
@@ -49,7 +49,7 @@ npm run build
 npm start
 ```
 
-`verify`는 JavaScript 문법, Next.js 경로 생성·TypeScript 타입, 33개 테스트를 검사합니다. 좌표/회전·이관·JSON 검증·저장 충돌/실패·가격 신선도·예산 계산을 확인합니다. CI는 운영 빌드도 실행합니다. DB DDL과 수집 예제의 실제 외부 연동은 검사하지 않습니다.
+`verify`는 JavaScript 문법, Next.js 경로 생성·TypeScript 타입, 40개 테스트를 검사합니다. 좌표/회전·이관·JSON 검증·저장 충돌/실패·가격 신선도·예산 계산을 확인합니다. CI는 운영 빌드도 실행합니다. DB DDL과 수집 예제의 실제 외부 연동은 검사하지 않습니다.
 
 ## 협업 규칙
 
@@ -64,3 +64,9 @@ npm start
 - [수집 어댑터 예제](examples/collect-mule.mjs)
 
 DB·Redis·수집 예제는 후속 설계이며 실제 시세 데이터가 공급되는 상태는 아닙니다.
+
+## 전체 기어 라이브러리
+
+현재 PedalPlayground 스냅샷의 **페달 8,891개·보드 268개**를 검색하고 제조사별로 선택할 수 있습니다. 페달은 클릭/드래그로 추가하고, 보드는 클릭하면 사진과 규격이 적용됩니다. 보드를 바꿔도 기존 페달 좌표는 유지하며 벗어난 항목을 경고합니다. 직접 규격을 적용하면 모델 사진 연결이 해제됩니다.
+
+`npm run catalog:check`로 원본 업데이트를 확인하고 `npm run catalog:sync`로 가져온 뒤 verify/build 및 배포를 수행합니다. 자동 주기 실행은 아직 활성화하지 않았습니다. 사진은 공식 등록 사진 → PedalPlayground → 대체 표시 순서로 요청하며, 추가 이미지 파일을 저장소에 일괄 복제하지 않습니다. 외부 이미지에 접근하려면 실행 서버의 인터넷 연결이 필요합니다. 자세한 동기화·출처·캐시·보드 형상 한계는 [사진/검색 문서](docs/ASSETS_AND_SEARCH.md)를 참고하세요.

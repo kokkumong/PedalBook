@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Stage, Layer, Group, Rect, Circle, Text, Line, Image as CanvasImage } from 'react-konva';
 import type Konva from 'konva';
-import { clampPosition, placementWarnings, viewportTransform } from '../domain/board.ts';
+import { boardModel, clampPosition, placementWarnings, viewportTransform } from '../domain/board.ts';
 import type { Board, BoardItem, Point } from '../domain/board.ts';
-import { containImage } from '../domain/photos.ts';
+import { catalogPhoto, containImage } from '../domain/photos.ts';
 import { useCanvasPedalPhoto } from '../hooks/use-pedal-photo';
 
 type Props = { board: Board; selectedId: string | null; zoom: number; pan: { x: number; y: number }; grid: boolean; snap: boolean;
@@ -30,6 +30,30 @@ function PedalNode({ item, board, selected, warning, snap, onSelect, onMove, onD
   </Group>;
 }
 
+function BoardSurface({ board }: { board: Board }) {
+  const model = boardModel(board);
+  const source = model ? catalogPhoto('boards', model.id)?.src : undefined;
+  const [loaded, setLoaded] = useState<{ source: string; image: HTMLImageElement } | null>(null);
+  useEffect(() => {
+    if (!source) return;
+    let active = true; const image = new window.Image();
+    image.onload = () => { if (active) setLoaded({ source, image }); };
+    image.onerror = () => { if (active) setLoaded(null); };
+    image.src = source;
+    return () => { active = false; };
+  }, [source]);
+  const image = loaded?.source === source ? loaded?.image : undefined;
+  const railCount = Math.max(2, Math.round(board.heightMm / 62));
+  const railHeight = (board.heightMm - 13 * (railCount - 1) - 10) / railCount;
+  return <Group>
+    <Rect width={board.widthMm} height={board.heightMm} cornerRadius={5} fill={image ? 'transparent' : '#151d19'} stroke="#606c5e" strokeWidth={1} shadowBlur={14} shadowColor="#000" shadowOpacity={.3} shadowOffsetY={6}/>
+    {image ? <CanvasImage image={image} {...containImage(image.width, image.height, board.widthMm, board.heightMm)} listening={false}/> : <>
+      {Array.from({ length: railCount }, (_, i) => <Rect key={i} x={4} y={5 + i * (railHeight + 13)} width={board.widthMm - 8} height={railHeight} cornerRadius={2} fill="#333b35" stroke="#4a5649" strokeWidth={.5}/>)}
+      {model && <Text text="보드 사진 로딩 중 또는 사용 불가 · 규격 표시" x={5} y={5} fontSize={7} fill="#c8d1c0"/>}
+    </>}
+  </Group>;
+}
+
 export default function BoardCanvas(props: Props) {
   const host = useRef<HTMLDivElement>(null), stage = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ width: 700, height: 500 });
@@ -42,8 +66,6 @@ export default function BoardCanvas(props: Props) {
   const { board, selectedId, onSelect, onPan, zoom, pan, grid } = props;
   const transform = viewportTransform(board, size.width, size.height, zoom, pan);
   const warnings = placementWarnings(board);
-  const railCount = Math.max(2, Math.round(board.heightMm / 62));
-  const railHeight = (board.heightMm - 13 * (railCount - 1) - 10) / railCount;
   const clearSelection = (event: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (event.target.findAncestor('.pedal', true)) return;
     onSelect(null);
@@ -62,8 +84,7 @@ export default function BoardCanvas(props: Props) {
             {Array.from({ length: Math.floor(board.widthMm / 100) + 1 }, (_, i) => <Group key={i}><Text x={i * 100 - 15} y={-27} width={30} text={String(i * 100)} fontSize={6} align="center" fill="#95a28e"/><Line points={[i * 100, -15, i * 100, -21]} stroke="#65715f" strokeWidth={.6}/></Group>)}
             {Array.from({ length: Math.floor(board.heightMm / 100) + 1 }, (_, i) => <Text key={i} x={-38} y={i * 100 - 3} width={24} text={String(i * 100)} fontSize={6} align="right" fill="#95a28e"/>)}
           </Group>
-          <Rect width={board.widthMm} height={board.heightMm} cornerRadius={5} fill="#151d19" stroke="#606c5e" shadowBlur={14} shadowColor="#000" shadowOpacity={.3} shadowOffsetY={6}/>
-          {Array.from({ length: railCount }, (_, i) => <Rect key={i} x={4} y={5 + i * (railHeight + 13)} width={board.widthMm - 8} height={railHeight} cornerRadius={2} fillLinearGradientStartPoint={{ x: 0, y: 0 }} fillLinearGradientEndPoint={{ x: 0, y: railHeight }} fillLinearGradientColorStops={[0, '#454d47', .1, '#333b35', 1, '#29312c']} stroke="#4a5649" strokeWidth={.5}/>)}
+          <BoardSurface board={board}/>
           {grid && <Group listening={false}>{Array.from({ length: Math.floor(board.widthMm / 25) + 1 }, (_, i) => <Line key={`x${i}`} points={[i * 25, 0, i * 25, board.heightMm]} stroke="#b3bda8" opacity={.08} strokeWidth={.6}/>)}{Array.from({ length: Math.floor(board.heightMm / 25) + 1 }, (_, i) => <Line key={`y${i}`} points={[0, i * 25, board.widthMm, i * 25]} stroke="#b3bda8" opacity={.08} strokeWidth={.6}/>)}</Group>}
           <Text x={board.widthMm - 180} y={board.heightMm - 13} width={165} text={`PEDALBOOK  /  ${board.widthMm} × ${board.heightMm}`} align="right" fontSize={5} letterSpacing={1} fill="#84917a" listening={false}/>
           {board.items.map(item => <PedalNode key={item.instanceId} {...props} item={item} selected={item.instanceId === selectedId} warning={warnings.ids.has(item.instanceId)}/>)}

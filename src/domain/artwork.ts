@@ -25,7 +25,7 @@ function pedalArt(p: Pedal) {
     [22, w - 22].forEach(x => { detail += `<circle cx="${x}" cy="${h - 21}" r="6.5" fill="#4e6d79"/><circle cx="${x}" cy="${h - 22}" r="5" fill="#d0d9d8" stroke="#64818b" stroke-width="1.5"/><circle cx="${x}" cy="${h - 22}" r="3" fill="#b5c0bf"/>`; });
   } else {
     detail += knob(w * .3, h * .16, Math.min(6, w * .08)) + knob(w * .7, h * .16, Math.min(6, w * .08));
-    detail += text(cx, h * .46, p.name.slice(0, 15), Math.min(9, w / 9), 'font-weight="700"') + text(cx, h * .54, 'CUSTOM PEDAL', Math.min(4, w / 16));
+    detail += text(cx, h * .46, p.name.slice(0, 15), Math.min(9, w / 9), 'font-weight="700"') + text(cx, h * .54, p.id.startsWith('custom-') ? 'CUSTOM PEDAL' : 'IMAGE UNAVAILABLE', Math.min(4, w / 16));
     detail += `<circle cx="${cx}" cy="${h * .79}" r="${Math.min(w * .13, 8)}" fill="#c9cbc3" stroke="#6c7165" stroke-width="1.5"/>`;
   }
   return `<rect width="${w}" height="${h}" rx="4" fill="${p.color}" stroke="#0005" stroke-width=".8"/><rect x="1.3" y="1.3" width="${w - 2.6}" height="${h - 2.6}" rx="3" fill="none" stroke="#fff4" stroke-width=".7"/>${detail}`;
