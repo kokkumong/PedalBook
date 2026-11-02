@@ -17,7 +17,8 @@ test('bundled photograph is the unmodified verified blueSky V2 source', () => {
 test('existing saved boards receive photos by ID without changing dimensions or accepting imported URLs', () => {
   const board = sampleBoard(), oldJson = JSON.stringify(board);
   const photo = pedalPhoto(board.items.find(i => i.pedalId === 'strymon-bluesky')!.pedal);
-  assert.equal(photo?.src, '/images/pedals/strymon-bluesky-v2.png');
+  assert.ok(photo?.src.startsWith('/api/catalog-image/pedals/strymon-bluesky?v='));
+  assert.equal(photo?.credit, 'PedalPlayground');
   assert.equal(JSON.stringify(board), oldJson);
   const custom = { ...CATALOG[0], id: 'custom-1', imageUrl: 'https://untrusted.example/a.png' };
   assert.equal(pedalPhoto(custom), undefined);

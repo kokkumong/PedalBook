@@ -36,10 +36,10 @@ test('model changes preserve pedals, prices and positions, round-trip and show o
   assert.equal(parseBoard(original).modelId, undefined);
   assert.throws(() => selectBoardModel(original, 'unknown'));
 });
-test('only catalog identities resolve images, official first then pinned upstream; URLs cannot be injected', () => {
+test('only catalog identities resolve images, pinned upstream first then official; URLs cannot be injected', () => {
   const ds1 = imageSources('pedals', 'boss-ds1');
-  assert.equal(ds1.length, 2); assert.ok(ds1[0].startsWith('https://static.roland.com/'));
-  assert.ok(ds1[1].includes(`/${CATALOG_META.revision}/public/images/pedals/boss-ds1.png`));
+  assert.equal(ds1.length, 2); assert.ok(ds1[1].startsWith('https://static.roland.com/'));
+  assert.ok(ds1[0].includes(`/${CATALOG_META.revision}/public/images/pedals/boss-ds1.png`));
   assert.deepEqual(imageSources('pedals', 'https://internal.invalid'), []);
   assert.deepEqual(imageSources('../../secret', 'boss-ds1'), []);
   assert.equal(catalogPhoto('boards', '../../secret'), undefined);

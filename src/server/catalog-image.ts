@@ -19,7 +19,7 @@ export function imageSources(kind: string, id: string): string[] {
   const fallback = catalogPhoto(kind, id);
   if (!fallback) return [];
   const official = kind === 'pedals' && Object.hasOwn(PEDAL_PHOTOS, id) ? PEDAL_PHOTOS[id] : undefined;
-  return [...new Set([official?.originalUrl, fallback.originalUrl].filter((url): url is string => !!url))];
+  return [...new Set([fallback.originalUrl, official?.originalUrl].filter((url): url is string => !!url))];
 }
 async function download(url: string): Promise<Buffer> {
   const response = await fetch(url, { signal: AbortSignal.timeout(15000), redirect: 'error', headers: { 'User-Agent': 'PedalBook-image-cache' } });
@@ -49,7 +49,7 @@ export async function cachedCatalogImage(sources: string[]): Promise<Buffer> {
           const bytes = await download(url);
           try { await mkdir(root, { recursive: true }); await writeFile(`${path}.tmp`, bytes); await rename(`${path}.tmp`, path); } catch { /* serving still works without writable disk */ }
           return bytes;
-        } catch { /* official source can fall back to catalog */ }
+        } catch { /* catalog source can fall back to official */ }
       }
       if (failures.size > 1000) failures.clear();
       failures.set(key, Date.now() + 60_000);

@@ -28,7 +28,7 @@ export const PEDAL_PHOTOS: Readonly<Record<string, PedalPhoto>> = {
 };
 
 export function pedalPhoto(pedal: Pedal): PedalPhoto | undefined {
-  return Object.hasOwn(PEDAL_PHOTOS, pedal.id) ? PEDAL_PHOTOS[pedal.id] : catalogPhoto('pedals', pedal.id);
+  return catalogPhoto('pedals', pedal.id) ?? (Object.hasOwn(PEDAL_PHOTOS, pedal.id) ? PEDAL_PHOTOS[pedal.id] : undefined);
 }
 
 export function containImage(imageWidth: number, imageHeight: number, width: number, height: number) {
@@ -42,7 +42,7 @@ export function catalogPhoto(kind: 'pedals' | 'boards', id: string): PedalPhoto 
   if (!entry) return undefined;
   const directory = kind === 'pedals' ? 'pedals' : 'pedalboards';
   return {
-    src: `/api/catalog-image/${kind}/${id}?v=${CATALOG_META.revision}`,
+    src: `/api/catalog-image/${kind}/${id}?v=${CATALOG_META.revision}-catalog-first-2`,
     sourceUrl: `${CATALOG_META.sourceUrl}/blob/${CATALOG_META.revision}/public/images/${directory}/${encodeURIComponent(entry.image)}`,
     originalUrl: `https://raw.githubusercontent.com/PedalPlayground/pedalplayground/${CATALOG_META.revision}/public/images/${directory}/${encodeURIComponent(entry.image)}`,
     credit: 'PedalPlayground', usage: 'External reference for personal noncommercial prototype; original rights retained. No blanket asset license asserted.', checkedAt: CATALOG_META.syncedAt.slice(0, 10),
