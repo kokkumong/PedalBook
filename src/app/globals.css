@@ -56,3 +56,28 @@
 @media(max-width:760px) {
   .catalog > .board-card { width: 210px; min-width: 210px; }
 }
+
+/* Shared 2D/3D workspace controls. */
+.editor-toolbar { flex-wrap: wrap; gap: 10px; height: auto; min-height: 49px; padding: 10px 14px; }
+.toolbar-actions { flex-wrap: wrap; }
+.view-toggle { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #6f7d61; border-radius: 7px; padding: 7px 10px; font-size: 11px; font-weight: 650; color: #d8e4cd; background: #35432f; white-space: nowrap; }
+.view-toggle:hover:enabled { background: #43543b; }
+.view-toggle.active { color: #ffe1cd; border-color: #ad7956; background: #614b39; }
+.three-host { position: absolute; inset: 0; }
+.three-host canvas { display: block; touch-action: none; }
+.three-instructions { position: absolute; z-index: 2; top: 52px; left: 15px; right: 15px; display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; color: #c0ccb2; font-size: 10px; line-height: 1.5; pointer-events: none; }
+.three-instructions b { font-weight: 500; color: #e3ecd8; }
+.three-instructions span { margin: 0 4px; opacity: .5; }
+.three-error { position: absolute; z-index: 3; inset: 75px 20px 65px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #ecf1e6; background: #263021; border-radius: 12px; padding: 20px; }
+.three-error p { font-size: 12px; line-height: 1.8; color: #b9c7ad; }
+.selected-elevation { display: grid; gap: 7px; padding: 12px 0; border-bottom: 1px solid #65754c30; color: #748269; font-size: 10px; }
+.selected-elevation>span { display: flex; justify-content: space-between; }
+.selected-elevation strong { color: #43533a; }
+.selected-elevation small, .selected-elevation a { font-size: 9px; line-height: 1.6; }
+@media (max-width: 600px) {
+  .editor-toolbar { padding: 13px 12px; }
+  .toolbar-actions { gap: 7px; }
+  .view-toggle { font-size: 10px; padding: 7px 8px; }
+  .three-instructions { top: 44px; font-size: 9px; gap: 3px; }
+  .canvas-bottom>span { max-width: 140px; font-size: 8px; line-height: 1.5; }
+}

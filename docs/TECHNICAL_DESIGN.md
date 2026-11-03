@@ -461,3 +461,15 @@ GROUP BY pedal_id;
 구현 시 필요한 검증은 mm/px 역변환, 회전 경계, 저장/복원, 타 사용자 보드 접근 거부, 잘못된 매칭 차단, 상태 전이, 가격 변경 이력, stale/빈 결과/차단 구분, 동시 갱신 억제, 부분 실패 시 기존 데이터 보존이다.
 
 현재 제공물은 설계 문서, DDL, 이관/수집 예제와 로컬 SVG 배치 프로토타입이다. 프로토타입은 저장·복원과 배치 조작을 검증하기 위한 별도 구현이며, 이 문서의 Next.js/React Konva 및 서버 아키텍처가 구현된 상태는 아니다. 실제 뮬 DOM, 라이브 수집, 운영 DB migration, 본 구현 성능은 아직 검증 대상이다. 최신 개발 순서와 완료 조건은 [단계별 개발 계획](DEVELOPMENT_PLAN.md)에 정의한다.
+
+## 3D 배치 편집기 (이슈 #11)
+
+- `next/dynamic`의 클라이언트 전용 지연 로딩으로 Three.js 화면을 3D 전환 시에 생성한다. 2D는 React Konva를 사용하며 두 모드 모두 `useBoard`의 동일한 Board 상태를 편집한다.
+- 저장 계약은 schemaVersion 2를 유지한다. `widthMm`/`heightMm`은 평면 가로/세로이며 물리 높이와 구분한다. 1 Three.js 단위 = 1mm이고 저장 X/Y를 월드 X/Z에 대응한다: `(xMm - widthMm/2, 0, yMm - heightMm/2)`. 화면상 시계 방향 회전은 월드 Y축의 음수 라디안으로 변환한다. 시점과 배율은 저장 규격과 분리한다.
+- 실제 높이는 `src/domain/board-3d.ts`의 별도 검수 매핑이다. [BOSS DS-1](https://www.boss.info/us/products/ds-1/) 59mm, [Strymon blueSky V2](https://www.strymon.net/product/bluesky/) 61mm(2026-11-03 확인). 나머지는 40mm 임시 시각화이며 제품 정보로 저장/내보내지 않는다. 보드 두께 16mm 및 단순 입체 형상도 시각화용이다.
+- 페달을 누른 위치의 높이에 평행한 드래그 평면을 두고 raycast 차이를 mm 이동량으로 사용한다. 이를 통해 원근 시점과 클릭 위치에 따른 순간 이동을 막는다. 공통 `clampPosition`으로 회전한 규격의 경계와 5mm 스냅을 적용한다. 드래그 중에는 장면만 갱신하며 놓을 때 `updateItem`을 한 번 실행해 undo/redo와 저장을 공유한다. 클릭만으로는 좌표를 변경하지 않는다.
+- 페달 제스처는 capture 단계에서 OrbitControls와 분리한다. pointer capture를 사용하고 pointercancel/lostpointercapture/blur/Escape 시 미확정 이동을 취소한다. 화면 전환/장면 해제 시에도 정리한다. 배경 터치의 회전·두 손가락 확대는 OrbitControls가 담당한다.
+- 라이브러리 드롭은 카메라 ray와 보드 평면의 교차점을 mm로 변환한다. 방향키/R/삭제, 선택 목록, 검사 패널은 기존 편집기 동작을 공유한다.
+- 사진 경로와 실패 시 대체 일러스트는 기존 출처 정책을 따른다. 사진은 원본 비율을 유지해 윗면에 맞춘다. 모드 종료와 항목 제거 시 geometry/material/texture/controls/observer/listener 및 WebGL context를 해제하고 늦게 끝난 이미지 로딩이 제거된 장면을 갱신하지 않게 한다. 유휴 시 연속 렌더링하지 않는다.
+- WebGL 생성 실패·context loss 시 2D 복귀 안내를 표시한다. 높이 미상/공식 값 구분, 보드의 실제 틈·경사 미반영을 사용자에게 표시한다. 형상 간 3D 충돌 판정은 제공하지 않으며 기존 평면 겹침/경계 경고를 사용한다.
+- `tests/board-3d.test.ts`는 좌표 왕복·회전 방향, 여러 시점에서의 grab offset, 스냅/회전 경계, v2 저장 왕복, 종횡비별 전체 보기, 미상 높이를 검증한다.
