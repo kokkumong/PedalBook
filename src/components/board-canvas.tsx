@@ -23,7 +23,8 @@ function PedalNode({ item, board, selected, warning, snap, onSelect, onMove, onD
     onDragMove={event => { const node = event.target; const point = clampPosition(item, board, { xMm: node.x(), yMm: node.y() }, snap); node.position({ x: point.xMm, y: point.yMm }); }}
     onDragEnd={event => { const node = event.target; const point = clampPosition(item, board, { xMm: node.x(), yMm: node.y() }, snap); onMove(item.instanceId, point); onDragging(false); }}>
     <Rect width={width} height={height} fill={image && isPhoto ? 'transparent' : item.pedal.color} cornerRadius={4} shadowColor="#000" shadowBlur={6} shadowOffsetY={3} shadowOpacity={.3}/>
-    {image ? <CanvasImage image={image} {...imageBounds}/> : <Text text={item.pedal.name} y={height / 2 - 5} width={width} fontSize={9} align="center" fill={item.pedal.ink}/>}
+    {image ? <CanvasImage image={image} {...imageBounds} opacity={item.mountSide === 'bottom' ? .4 : 1}/> : <Text text={item.pedal.name} y={height / 2 - 5} width={width} fontSize={9} align="center" fill={item.pedal.ink}/>}
+    {item.mountSide === 'bottom' && <><Rect width={width} height={height} stroke="#8edec9" strokeWidth={1.5} dash={[4,3]} fill="#24554e44" listening={false}/><Text text="하부" x={3} y={3} fontSize={9} padding={2} fill="#b3ffe9" listening={false}/></>}
     {item.owned && <Circle x={width - 6} y={height - 6} radius={2.5} fill="#b0cf9f" stroke="#2e4834" strokeWidth={.7}/>}
     {(selected || warning) && <Rect x={-4} y={-4} width={width + 8} height={height + 8} cornerRadius={6} stroke={selected ? '#ffb68d' : '#bd8362'} strokeWidth={selected ? 1.5 : 1} dash={selected ? undefined : [3, 3]} listening={false}/>}
     {selected && [[-4, -4], [width + 4, -4], [-4, height + 4], [width + 4, height + 4]].map(([x, y], i) => <Rect key={i} x={x - 1.5} y={y - 1.5} width={3} height={3} fill="#ffc19e" listening={false}/>)}
@@ -87,7 +88,7 @@ export default function BoardCanvas(props: Props) {
           <BoardSurface board={board}/>
           {grid && <Group listening={false}>{Array.from({ length: Math.floor(board.widthMm / 25) + 1 }, (_, i) => <Line key={`x${i}`} points={[i * 25, 0, i * 25, board.heightMm]} stroke="#b3bda8" opacity={.08} strokeWidth={.6}/>)}{Array.from({ length: Math.floor(board.heightMm / 25) + 1 }, (_, i) => <Line key={`y${i}`} points={[0, i * 25, board.widthMm, i * 25]} stroke="#b3bda8" opacity={.08} strokeWidth={.6}/>)}</Group>}
           <Text x={board.widthMm - 180} y={board.heightMm - 13} width={165} text={`PEDALBOOK  /  ${board.widthMm} × ${board.heightMm}`} align="right" fontSize={5} letterSpacing={1} fill="#84917a" listening={false}/>
-          {board.items.map(item => <PedalNode key={item.instanceId} {...props} item={item} selected={item.instanceId === selectedId} warning={warnings.ids.has(item.instanceId)}/>)}
+          {[...board.items].sort((a,b)=>Number(a.instanceId === selectedId)-Number(b.instanceId === selectedId) || Number(a.mountSide !== 'bottom')-Number(b.mountSide !== 'bottom')).map(item => <PedalNode key={item.instanceId} {...props} item={item} selected={item.instanceId === selectedId} warning={warnings.ids.has(item.instanceId)}/>)}
         </Group>
       </Layer>
     </Stage>

@@ -23,6 +23,9 @@ const itemSchema = z.object({
   instanceId: text(100), pedalId: text(100), pedal: pedalSchema,
   xMm: coordinate, yMm: coordinate, rotationDeg: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
   owned: z.boolean().default(false), manualPriceKrw: z.number().int().min(0).max(100_000_000).nullable().default(null),
+  // Optional extensions keep old v2 snapshots unchanged; absent means top.
+  mountSide: z.enum(['top', 'bottom']).optional(),
+  physicalHeightMm: z.number().finite().min(1).max(500).optional(),
 }).refine(item => item.pedalId === item.pedal.id, '페달 ID와 규격 정보가 일치하지 않습니다.');
 const boardSchema = z.object({
   schemaVersion: z.literal(2), name: text(60),
@@ -76,6 +79,7 @@ export function clampPosition(item: BoardItem, board: Board, point: Point, snap 
   return { xMm: axis(point.xMm, half.xMm, board.widthMm), yMm: axis(point.yMm, half.yMm, board.heightMm) };
 }
 export function overlaps(a: BoardItem, b: BoardItem) {
+  if ((a.mountSide ?? 'top') !== (b.mountSide ?? 'top')) return false;
   const ae = extents(a), be = extents(b);
   return Math.abs(a.xMm - b.xMm) < ae.xMm + be.xMm - .001 && Math.abs(a.yMm - b.yMm) < ae.yMm + be.yMm - .001;
 }
@@ -103,7 +107,7 @@ export function addItem(board: Board, pedal: Pedal, instanceId: string, point?: 
   Object.assign(item, point ? clampPosition(item, board, point, snap) : freePosition(item, board));
   return { ...board, items: [...board.items, item] };
 }
-export function updateItem(board: Board, instanceId: string, patch: Partial<Pick<BoardItem, 'xMm' | 'yMm' | 'rotationDeg' | 'owned' | 'manualPriceKrw'>>, snap = false): Board {
+export function updateItem(board: Board, instanceId: string, patch: Partial<Pick<BoardItem, 'xMm' | 'yMm' | 'rotationDeg' | 'owned' | 'manualPriceKrw' | 'mountSide' | 'physicalHeightMm'>>, snap = false): Board {
   return { ...board, items: board.items.map(item => {
     if (item.instanceId !== instanceId) return item;
     const next = { ...item, ...patch };

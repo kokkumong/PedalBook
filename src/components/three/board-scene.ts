@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { boardModel, placementWarnings } from '../../domain/board.ts';
 import type { Board, BoardItem, Point } from '../../domain/board.ts';
-import { boardSurfaceAngle, boardSurfacePoint, surfaceToBoard, boardRockboard, pedalSurfacePoint, pedalCrossesStep, worldRotation, dragOnBoard, fitDistance, pedalElevation } from '../../domain/board-3d.ts';
+import { boardSurfaceAngle, boardSurfacePoint, surfaceToBoard, boardRockboard, pedalSurfacePoint, pedalCrossesStep, worldRotation, dragOnBoard, fitDistance, itemElevation, undersideWarnings } from '../../domain/board-3d.ts';
 import { catalogPhoto, containImage, PEDAL_PHOTOS, pedalPhoto } from '../../domain/photos.ts';
 import { pedalImage } from '../../domain/artwork.ts';
 import { createRockboardGeometry } from './rockboard-geometry.ts';
@@ -161,7 +161,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     clearance = undefined;
     const w = next.widthMm, d = next.heightMm;
     const profile = boardRockboard(next);
-    controls.maxPolarAngle = profile ? Math.PI - .04 : Math.PI / 2 - .09;
+    controls.maxPolarAngle = Math.PI - .04;
     if (profile) {
       const model = createRockboardGeometry(profile);
       surface.add(model.root);
@@ -211,7 +211,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
 
   function createPedal(item: BoardItem, key: string): Visual {
     const { widthMm: width, heightMm: depth } = item.pedal;
-    const elevation = pedalElevation(item.pedalId).mm;
+    const elevation = itemElevation(item).mm;
     const group = new THREE.Group();
     const body = new THREE.Mesh(new RoundedBoxGeometry(width, elevation, depth, 2, Math.min(3, width / 6, depth / 6)), new THREE.MeshStandardMaterial({ color: item.pedal.color, roughness: .65, metalness: .18 }));
     body.position.y = elevation / 2;
@@ -245,7 +245,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     for (const [id, visual] of pedals) if (!ids.has(id)) { visual.dispose(); pedals.delete(id); }
     const warnings = placementWarnings(next);
     for (const item of next.items) {
-      const key = JSON.stringify(item.pedal);
+      const key = JSON.stringify([item.pedal,itemElevation(item).mm]);
       let visual = pedals.get(item.instanceId);
       if (!visual || visual.key !== key) {
         visual?.dispose();
@@ -255,7 +255,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
       if (drag?.item.instanceId !== item.instanceId) {
         positionPedal(item,next,visual.group);
       }
-      const stepWarning = pedalCrossesStep(item,next);
+      const stepWarning = pedalCrossesStep(item,next) || undersideWarnings(item,next).length > 0;
       visual.outline.visible = selectedId === item.instanceId || warnings.ids.has(item.instanceId) || stepWarning;
       visual.outline.material.color.set(selectedId === item.instanceId ? '#ffc098' : '#d19167');
     }
@@ -293,12 +293,18 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
   function down(event: PointerEvent) {
     if (drag) { event.stopImmediatePropagation(); return; }
     if (!board || !event.isPrimary || event.button !== 0 || event.shiftKey || event.ctrlKey || event.metaKey) return;
-    if (surfaceNormal().dot(camera.position.clone().sub(controls.target)) <= 0) return;
+    const fromBelow = surfaceNormal().dot(camera.position.clone().sub(controls.target)) <= 0;
     setRay(event.clientX, event.clientY);
-    const hit = raycaster.intersectObjects([...pedals.values()].map(v => v.body), false)[0];
+    const candidates = board.items.filter(item => (item.mountSide === 'bottom') === fromBelow).map(item=>pedals.get(item.instanceId)!.body);
+    const hit = raycaster.intersectObjects(candidates, false)[0];
     if (!hit) { callbacks.onSelect(null); return; }
     const item = board.items.find(i => i.instanceId === hit.object.userData.instanceId);
     if (!item) return;
+    // Solid folds/braces occlude equipment; transparent clearance overlays do not.
+    const hardware: THREE.Mesh[] = [];
+    surface.traverse(object => { if (object instanceof THREE.Mesh && object.parent !== clearance) hardware.push(object); });
+    const obstruction = raycaster.intersectObjects(hardware,false)[0];
+    if (obstruction && obstruction.distance < hit.distance - .1) { callbacks.onSelect(null); return; }
     event.stopImmediatePropagation();
     event.preventDefault();
     // Capture-phase interception keeps OrbitControls out of the pedal gesture.
@@ -359,7 +365,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     update, setZoom, fit, project,
     setClearance(value: boolean) { showClearance = value; if (clearance) clearance.visible = value; render(); },
     viewUnderside() {
-      if (!board || !boardRockboard(board)) return;
+      if (!board) return;
       finishDrag(false); fit();
       camera.position.copy(controls.target).addScaledVector(new THREE.Vector3(.35,-.9,1).normalize(),baseDistance);
       controls.update(); render();
