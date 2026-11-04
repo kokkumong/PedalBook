@@ -7,6 +7,8 @@ import { boardSurfaceAngle, boardSurfacePoint, surfaceToBoard, boardRockboard, p
 import { catalogPhoto, containImage, PEDAL_PHOTOS, pedalPhoto } from '../../domain/photos.ts';
 import { pedalImage } from '../../domain/artwork.ts';
 import { createRockboardGeometry } from './rockboard-geometry.ts';
+import { bossProfile } from '../../domain/boss.ts';
+import { bossLabelTexture, createBossGeometry } from './boss-geometry.ts';
 
 type Callbacks = {
   onSelect: (id: string | null) => void;
@@ -16,7 +18,7 @@ type Callbacks = {
   onError: () => void;
   onViewSide: (side: 'top' | 'bottom') => void;
 };
-type Visual = { group: THREE.Group; body: THREE.Mesh; outline: THREE.LineSegments<THREE.EdgesGeometry, THREE.LineBasicMaterial>; key: string; dispose: () => void };
+type Visual = { group: THREE.Group; pickMeshes: THREE.Mesh[]; outline: THREE.LineSegments<THREE.EdgesGeometry, THREE.LineBasicMaterial>; key: string; dispose: () => void };
 type Drag = { pointerId: number; item: BoardItem; board: Board; start: THREE.Vector3; plane: THREE.Plane; screenX: number; screenY: number; moved: boolean; point: Point };
 
 function disposeTree(root: THREE.Object3D) {
@@ -225,29 +227,37 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     group.position.set(p.x,p.y,p.z);
     group.quaternion.setFromAxisAngle(new THREE.Vector3(1,0,0),boardSurfaceAngle(next));
     group.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),worldRotation(item.rotationDeg)));
+    if (item.mountSide === 'bottom') group.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI));
   }
 
   function createPedal(item: BoardItem, key: string): Visual {
     const { widthMm: width, heightMm: depth } = item.pedal;
     const elevation = itemElevation(item).mm;
     const group = new THREE.Group();
-    const body = new THREE.Mesh(new RoundedBoxGeometry(width, elevation, depth, 2, Math.min(3, width / 6, depth / 6)), new THREE.MeshStandardMaterial({ color: item.pedal.color, roughness: .65, metalness: .18 }));
-    body.position.y = elevation / 2;
-    body.castShadow = true;
-    body.receiveShadow = true;
-    body.userData.instanceId = item.instanceId;
-    group.add(body);
+    const profile = bossProfile(item.pedalId);
+    let cancel = () => {};
+    if (profile) {
+      const model = createBossGeometry(profile,bossLabelTexture);
+      // Preserve existing saved footprint, including older catalog dimensions.
+      model.scale.multiply(new THREE.Vector3(width/profile.widthMm,elevation/profile.heightMm,depth/profile.depthMm));
+      group.add(model);
+    } else {
+      const body = new THREE.Mesh(new RoundedBoxGeometry(width, elevation, depth, 2, Math.min(3, width / 6, depth / 6)), new THREE.MeshStandardMaterial({ color: item.pedal.color, roughness: .65, metalness: .18 }));
+      body.position.y = elevation / 2; body.castShadow = true; body.receiveShadow = true; group.add(body);
+      const official = Object.hasOwn(PEDAL_PHOTOS, item.pedalId) ? PEDAL_PHOTOS[item.pedalId] : undefined;
+      const local = official?.src.startsWith('/images/') ? official.src : undefined;
+      const sources = [...new Set([pedalPhoto(item.pedal)?.src, local, pedalImage(item.pedal)].filter((src): src is string => !!src))];
+      cancel = addPhoto(group, width, depth, elevation, sources, render);
+    }
+    const pickMeshes: THREE.Mesh[] = [];
+    group.traverse(part=>{if(part instanceof THREE.Mesh) {part.userData.instanceId=item.instanceId;pickMeshes.push(part);}});
     const outlineBox = new THREE.BoxGeometry(width + 4, elevation + 2, depth + 4);
     const outline = new THREE.LineSegments(new THREE.EdgesGeometry(outlineBox), new THREE.LineBasicMaterial({ color: '#ffb68d' }));
     outlineBox.dispose();
     outline.position.y = elevation / 2;
     group.add(outline);
-    const official = Object.hasOwn(PEDAL_PHOTOS, item.pedalId) ? PEDAL_PHOTOS[item.pedalId] : undefined;
-    const local = official?.src.startsWith('/images/') ? official.src : undefined;
-    const sources = [...new Set([pedalPhoto(item.pedal)?.src, local, pedalImage(item.pedal)].filter((src): src is string => !!src))];
-    const cancel = addPhoto(group, width, depth, elevation, sources, render);
     scene.add(group);
-    return { group, body, outline, key, dispose: () => { cancel(); disposeTree(group); } };
+    return { group, pickMeshes, outline, key, dispose: () => { cancel(); disposeTree(group); } };
   }
 
   function update(next: Board, selectedId: string | null, showGrid: boolean, useSnap: boolean) {
@@ -313,7 +323,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     if (!board || !event.isPrimary || event.button !== 0 || event.shiftKey || event.ctrlKey || event.metaKey) return;
     const fromBelow = surfaceNormal().dot(camera.position.clone().sub(controls.target)) <= 0;
     setRay(event.clientX, event.clientY);
-    const candidates = board.items.filter(item => (item.mountSide === 'bottom') === fromBelow).map(item=>pedals.get(item.instanceId)!.body);
+    const candidates = board.items.filter(item => (item.mountSide === 'bottom') === fromBelow).flatMap(item=>pedals.get(item.instanceId)!.pickMeshes);
     const hit = raycaster.intersectObjects(candidates, false)[0];
     if (!hit) { callbacks.onSelect(null); return; }
     const item = board.items.find(i => i.instanceId === hit.object.userData.instanceId);

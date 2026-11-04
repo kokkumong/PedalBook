@@ -1,16 +1,17 @@
 import { boardModel, clampPosition, extents } from './board.ts';
 import type { Board, BoardItem, Point } from './board.ts';
 import { rockboardProfile, rockboardAngle, rockboardBaseHeight, rockboardBays, ROCKBOARD_SHEET_MM, ROCKBOARD_FOOT_MM } from './rockboard.ts';
+import { bossProfile } from './boss.ts';
 
 // The existing heightMm is the top-view depth. These are separate visual Z heights.
 export const PREVIEW_HEIGHT_MM = 40;
 const VERIFIED_HEIGHTS: Readonly<Record<string, { mm: number; sourceUrl: string }>> = {
-  'boss-ds1': { mm: 59, sourceUrl: 'https://www.boss.info/us/products/ds-1/' },
   'strymon-bluesky': { mm: 61, sourceUrl: 'https://www.strymon.net/product/bluesky/' },
   'pp-p-468e6a1037b6cf55433c': { mm: 32, sourceUrl: 'https://www.moskyaudio.com/product/product-19-230.html' },
 };
 export function pedalElevation(id: string) {
-  const known = Object.hasOwn(VERIFIED_HEIGHTS, id) ? VERIFIED_HEIGHTS[id] : undefined;
+  const boss = bossProfile(id);
+  const known = boss ? { mm: boss.heightMm, sourceUrl: boss.sourceUrl } : Object.hasOwn(VERIFIED_HEIGHTS, id) ? VERIFIED_HEIGHTS[id] : undefined;
   return { mm: known?.mm ?? PREVIEW_HEIGHT_MM, estimated: !known, sourceUrl: known?.sourceUrl };
 }
 export function itemElevation(item: BoardItem) {
@@ -69,7 +70,9 @@ export function pedalSurfacePoint(item: BoardItem, board: Board) {
     // footprint hangs below the lower tier rather than intersecting its riser.
     const upper = !!step && item.yMm + extents(item).yMm <= step.depthMm;
     const p = boardSurfacePoint(item, board, upper);
-    const offset = (profile ? ROCKBOARD_SHEET_MM : 16) + 2 + itemElevation(item).mm;
+    // Local y=0 is the equipment base, glued to the underside; local +Y
+    // points down after the mounting flip. Do not subtract its height twice.
+    const offset = (profile ? ROCKBOARD_SHEET_MM : 16) + 2;
     return { x: p.x, y: p.y - offset * Math.cos(angle), z: p.z - offset * Math.sin(angle) };
   }
   // A straddling pedal is displayed on the higher plane and flagged, rather than
@@ -80,12 +83,17 @@ export function pedalSurfacePoint(item: BoardItem, board: Board) {
 
 // Eight corners of the same oriented box used by Three.js. Stored X/Y remain
 // mounting coordinates, not the shifted bottom face of a hanging enclosure.
-export function itemWorldCorners(item: BoardItem, board: Board) {
+export function itemLocalToWorld(point: { x: number; y: number; z: number }, item: BoardItem, board: Board) {
   const origin = pedalSurfacePoint(item, board), tilt = boardSurfaceAngle(board), yaw = worldRotation(item.rotationDeg);
+  const sign = item.mountSide === 'bottom' ? -1 : 1;
+  const y = point.y*sign, z = point.z*sign;
+  const rx = point.x*Math.cos(yaw)+z*Math.sin(yaw), rz = -point.x*Math.sin(yaw)+z*Math.cos(yaw);
+  return { x: origin.x+rx, y: origin.y+y*Math.cos(tilt)-rz*Math.sin(tilt), z: origin.z+y*Math.sin(tilt)+rz*Math.cos(tilt) };
+}
+export function itemWorldCorners(item: BoardItem, board: Board) {
   const result: { x: number; y: number; z: number }[] = [];
   for (const x of [-item.pedal.widthMm/2,item.pedal.widthMm/2]) for (const z of [-item.pedal.heightMm/2,item.pedal.heightMm/2]) for (const y of [0,itemElevation(item).mm]) {
-    const rx = x*Math.cos(yaw)+z*Math.sin(yaw), rz = -x*Math.sin(yaw)+z*Math.cos(yaw);
-    result.push({ x: origin.x+rx, y: origin.y+y*Math.cos(tilt)-rz*Math.sin(tilt), z: origin.z+y*Math.sin(tilt)+rz*Math.cos(tilt) });
+    result.push(itemLocalToWorld({x,y,z},item,board));
   }
   return result;
 }

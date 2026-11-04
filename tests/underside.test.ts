@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from 'three';
+import { PerspectiveCamera, Plane, Raycaster, Vector2, Vector3, Quaternion } from 'three';
 import { BOARD_MODELS, PEDALS_BY_ID } from '../src/domain/catalog.ts';
 import { addItem, emptyBoard, freePosition, overlaps, parseBoardFile, placementWarnings, selectBoardModel, updateItem } from '../src/domain/board.ts';
-import { boardSurfaceAngle, boardSurfacePoint, dragOnBoard, itemElevation, itemWorldCorners, pedalSurfacePoint, undersideWarnings } from '../src/domain/board-3d.ts';
+import { boardSurfaceAngle, boardSurfacePoint, dragOnBoard, itemElevation, itemLocalToWorld, itemWorldCorners, pedalSurfacePoint, undersideWarnings, worldRotation } from '../src/domain/board-3d.ts';
 import { ROCKBOARD_SHEET_MM } from '../src/domain/rockboard.ts';
 
 const iso = PEDALS_BY_ID.get('pp-p-468e6a1037b6cf55433c')!;
@@ -47,12 +47,29 @@ test('hanging enclosure stays below the deck with 2mm allowance at every rotatio
   for (const rotationDeg of [0,90,180,270] as const) {
     const item = {...board.items[0],mountSide:'bottom' as const,rotationDeg};
     const corners = itemWorldCorners(item,board), angle = boardSurfaceAngle(board);
-    const topCorners = corners.filter((_,index)=>index%2 === 1);
+    const topCorners = corners.filter((_,index)=>index%2 === 0);
     for (const corner of topCorners) {
       const top = boardSurfacePoint({xMm:corner.x+board.widthMm/2,yMm:corner.z+board.heightMm/2},board);
       close((top.y-corner.y)*Math.cos(angle),ROCKBOARD_SHEET_MM+2);
     }
     assert.ok(Math.max(...corners.map(p=>p.y))<boardSurfacePoint(item,board).y+20);
+  }
+});
+
+test('underside mounting flips the control face away from the board while matching rendered rotation', () => {
+  const max=BOARD_MODELS.find(b=>b.brand==='Rockboard by Warwick' && b.name==='Cinque 5.3 MAX')!;
+  for(const board of [emptyBoard(),makeBoard(),selectBoardModel(emptyBoard(),max.id)]) {
+    for(const rotationDeg of [0,90,180,270] as const) for(const mountSide of ['top','bottom'] as const) {
+      const item={...makeBoard().items[0],mountSide,rotationDeg,physicalHeightMm:53};
+      const base=itemLocalToWorld({x:0,y:0,z:0},item,board), face=itemLocalToWorld({x:0,y:53,z:0},item,board);
+      const tilt=boardSurfaceAngle(board), normal=new Vector3(0,Math.cos(tilt),Math.sin(tilt));
+      close(new Vector3(face.x-base.x,face.y-base.y,face.z-base.z).dot(normal),mountSide==='bottom'?-53:53);
+      const quaternion=new Quaternion().setFromAxisAngle(new Vector3(1,0,0),tilt).multiply(new Quaternion().setFromAxisAngle(new Vector3(0,1,0),worldRotation(rotationDeg)));
+      if(mountSide==='bottom') quaternion.multiply(new Quaternion().setFromAxisAngle(new Vector3(1,0,0),Math.PI));
+      const sample=new Vector3(13,37,-21).applyQuaternion(quaternion).add(new Vector3(base.x,base.y,base.z));
+      const actual=itemLocalToWorld({x:13,y:37,z:-21},item,board);
+      close(actual.x,sample.x);close(actual.y,sample.y);close(actual.z,sample.z);
+    }
   }
 });
 
