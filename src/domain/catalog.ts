@@ -1,3 +1,4 @@
+import { rockboardProfile } from './rockboard.ts';
 import snapshot from '../catalog-snapshot.json' with { type: 'json' };
 export type Pedal = {
   id: string;
@@ -24,7 +25,10 @@ const LOCAL_PEDALS: Pedal[] = [
 
 export const CATALOG_META = { revision: snapshot.revision, syncedAt: snapshot.syncedAt, sourceUrl: snapshot.sourceUrl, pedalCount: snapshot.pedals.length, boardCount: snapshot.boards.length };
 export type BoardModel = { id: string; brand: string; name: string; widthMm: number; heightMm: number; image: string };
-export const BOARD_MODELS: BoardModel[] = snapshot.boards;
+export const BOARD_MODELS: BoardModel[] = snapshot.boards.map(model => {
+  const official = rockboardProfile(model);
+  return official ? { ...model, widthMm: official.widthMm, heightMm: official.depthMm } : model;
+});
 export const SOURCE_PEDALS = new Map(snapshot.pedals.map(p => [p.id, p]));
 export const SOURCE_BOARDS = new Map(BOARD_MODELS.map(p => [p.id, p]));
 const locals = new Map(LOCAL_PEDALS.map(p => [p.id, p]));

@@ -473,3 +473,9 @@ GROUP BY pedal_id;
 - 사진 경로와 실패 시 대체 일러스트는 기존 출처 정책을 따른다. 사진은 원본 비율을 유지해 윗면에 맞춘다. 모드 종료와 항목 제거 시 geometry/material/texture/controls/observer/listener 및 WebGL context를 해제하고 늦게 끝난 이미지 로딩이 제거된 장면을 갱신하지 않게 한다. 유휴 시 연속 렌더링하지 않는다.
 - WebGL 생성 실패·context loss 시 2D 복귀 안내를 표시한다. 높이 미상/공식 값 구분, 보드의 실제 틈·경사 미반영을 사용자에게 표시한다. 형상 간 3D 충돌 판정은 제공하지 않으며 기존 평면 겹침/경계 경고를 사용한다.
 - `tests/board-3d.test.ts`는 좌표 왕복·회전 방향, 여러 시점에서의 grab offset, 스냅/회전 경계, v2 저장 왕복, 종횡비별 전체 보기, 미상 높이를 검증한다.
+
+## RockBoard 구조 확장 (이슈 #13)
+
+기본 3D의 16mm 슬래브 대신, 공식 규격으로 선택한 RockBoard 16종에는 별도 메시를 사용한다. 도메인 치수와 출처는 rockboard.ts, 경사 좌표 변환은 board-3d.ts, 천공·접힘·보강대 생성은 rockboard-geometry.ts로 나눈다. Shape의 실제 hole을 ExtrudeGeometry로 천공하여 하부가 보이고, 제조사 공간도면의 구획은 별도 투명 메시로 토글한다. 카메라는 보드 아래까지 회전 가능하다.
+
+기존 기본 보드의 수평 변환을 RockBoard에 한해 worldY = base − localZ × tan(angle) + step, worldZ = localZ로 확장한다. 페달 드래그는 상판 법선에 평행한 평면을 사용하고 역변환으로 mm를 보존한다. MAX의 계단을 가로지르는 페달은 높은 면에서 표시하고 경고한다. 기존 저장 규격을 자동 수정하지 않으며 사용자가 공식 규격을 적용해야 한다. 자세한 도면 우선순위·근사 부분·검증은 [ROCKBOARD_3D.md](ROCKBOARD_3D.md)를 따른다.

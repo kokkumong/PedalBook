@@ -74,6 +74,20 @@
 .selected-elevation>span { display: flex; justify-content: space-between; }
 .selected-elevation strong { color: #43533a; }
 .selected-elevation small, .selected-elevation a { font-size: 9px; line-height: 1.6; }
+.three-board-tools { position: absolute; z-index: 2; top: 83px; left: 12px; right: 12px; display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }
+.three-board-tools button { border: 1px solid #68755d; border-radius: 6px; padding: 7px 10px; background: #293a2bec; color: #dce9d4; font-size: 10px; }
+.three-board-tools button:hover, .three-board-tools button[aria-pressed="true"] { background: #466152; border-color: #8ed0af; color: #fff; }
+.rockboard-info { margin-top: 18px; padding: 13px; border: 1px solid #72865b40; border-radius: 8px; background: #f2f4ed; font-size: 10px; line-height: 1.7; color: #53634a; }
+.rockboard-info>strong { color: #34472c; font-size: 11px; }
+.rockboard-info p { margin: 8px 0; }
+.rockboard-info dl { margin: 10px 0; }
+.rockboard-info dl>div { margin: 6px 0; }
+.rockboard-info dt { color: #6a785f; }
+.rockboard-info dd { margin: 0; font-weight: 650; color: #34472c; }
+.rockboard-sources { display: flex; flex-wrap: wrap; gap: 7px 13px; margin: 12px 0; }
+.rockboard-sources a { text-decoration: underline; text-underline-offset: 3px; }
+.rockboard-info summary { cursor: pointer; font-weight: 600; }
+.rockboard-caution { border-left: 2px solid #b18152; padding: 4px 0 4px 8px; color: #805833; font-size: 10px; line-height: 1.7; }
 @media (max-width: 600px) {
   .editor-toolbar { padding: 13px 12px; }
   .toolbar-actions { gap: 7px; }

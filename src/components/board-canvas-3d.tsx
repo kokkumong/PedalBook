@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
+import { boardRockboard } from '../domain/board-3d.ts';
 import type { Board, Point } from '../domain/board.ts';
 import { createBoardScene } from './three/board-scene';
 
@@ -18,6 +19,8 @@ export default function BoardCanvas3D(props: Props) {
   const scene = useRef<ReturnType<typeof createBoardScene> | null>(null);
   const latest = useRef(props); latest.current = props;
   const [failed, setFailed] = useState(false);
+  const [showClearance,setShowClearance] = useState(false);
+  const profile = boardRockboard(props.board);
   useEffect(() => {
     const node = host.current;
     if (!node) return;
@@ -41,6 +44,7 @@ export default function BoardCanvas3D(props: Props) {
   useEffect(() => { scene.current?.update(props.board, props.selectedId, props.grid, props.snap); }, [props.board, props.selectedId, props.grid, props.snap]);
   useEffect(() => { scene.current?.setZoom(props.zoom); }, [props.zoom]);
   useEffect(() => { scene.current?.fit(); }, [props.fitRequest]);
+  useEffect(() => { scene.current?.setClearance(showClearance); }, [showClearance]);
   useEffect(() => {
     if (failed) {
       scene.current?.dispose(); scene.current = null;
@@ -49,6 +53,11 @@ export default function BoardCanvas3D(props: Props) {
   }, [failed]);
   return <>
     <div className="three-host" ref={host}/>
+    {profile && !failed && <div className="three-board-tools" aria-label="RockBoard 3D 보기">
+      <button onClick={() => scene.current?.fit()}>상판 보기</button>
+      <button onClick={() => scene.current?.viewUnderside()}>하부 보기</button>
+      <button aria-pressed={showClearance} onClick={() => setShowClearance(value => !value)}>하부 공간 {showClearance ? '숨기기' : '표시'}</button>
+    </div>}
     {failed ? <div className="three-error" role="alert"><strong>3D 화면을 열 수 없어요.</strong><p>브라우저의 WebGL 지원과 하드웨어 가속 설정을 확인해 주세요.<br/>현재 배치는 2D에서 계속 편집할 수 있어요.</p><button className="button primary" onClick={props.onReturnTo2D}>2D로 돌아가기</button></div>
       : <div className="three-instructions">배경 드래그 <b>시점 회전</b><span>·</span>휠 / 두 손가락 <b>확대</b><span>·</span>페달 드래그 <b>이동</b></div>}
   </>;

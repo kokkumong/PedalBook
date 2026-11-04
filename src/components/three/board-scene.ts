@@ -3,9 +3,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { boardModel, placementWarnings } from '../../domain/board.ts';
 import type { Board, BoardItem, Point } from '../../domain/board.ts';
-import { boardToWorld, worldToBoard, worldRotation, dragOnBoard, fitDistance, pedalElevation } from '../../domain/board-3d.ts';
+import { boardSurfaceAngle, boardSurfacePoint, surfaceToBoard, boardRockboard, pedalSurfacePoint, pedalCrossesStep, worldRotation, dragOnBoard, fitDistance, pedalElevation } from '../../domain/board-3d.ts';
 import { catalogPhoto, containImage, PEDAL_PHOTOS, pedalPhoto } from '../../domain/photos.ts';
 import { pedalImage } from '../../domain/artwork.ts';
+import { createRockboardGeometry } from './rockboard-geometry.ts';
 
 type Callbacks = {
   onSelect: (id: string | null) => void;
@@ -94,6 +95,8 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
   let surfaceKey = '';
   let cancelBoardPhoto: (() => void) | undefined;
   let grid: THREE.LineSegments | undefined;
+  let clearance: THREE.Group | undefined;
+  let showClearance = false;
   let drag: Drag | null = null;
   let snap = true;
   let disposed = false;
@@ -153,36 +156,57 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
   observer.observe(host);
 
   function rebuildSurface(next: Board) {
-    cancelBoardPhoto?.();
+    cancelBoardPhoto?.(); cancelBoardPhoto = undefined;
     for (const child of [...surface.children]) disposeTree(child);
+    clearance = undefined;
     const w = next.widthMm, d = next.heightMm;
-    const material = new THREE.MeshStandardMaterial({ color: '#303a32', roughness: .8, metalness: .2 });
-    const slab = new THREE.Mesh(new RoundedBoxGeometry(w, 16, d, 2, 3), material);
-    slab.position.y = -8;
-    slab.receiveShadow = true;
-    slab.castShadow = true;
-    surface.add(slab);
-    const model = boardModel(next);
-    if (model) {
-      const photo = catalogPhoto('boards', model.id);
-      if (photo) cancelBoardPhoto = addPhoto(surface, w, d, 0, [photo.src], render);
+    const profile = boardRockboard(next);
+    controls.maxPolarAngle = profile ? Math.PI - .04 : Math.PI / 2 - .09;
+    if (profile) {
+      const model = createRockboardGeometry(profile);
+      surface.add(model.root);
+      clearance = model.clearance;
+      clearance.visible = showClearance;
     } else {
-      const count = Math.max(2, Math.round(d / 62));
-      for (let i = 1; i < count; i++) {
-        const gap = new THREE.Mesh(new THREE.BoxGeometry(w - 12, .3, Math.min(10, d / count / 3)), new THREE.MeshStandardMaterial({ color: '#111a15', roughness: 1 }));
-        gap.position.set(0, .2, -d / 2 + d * i / count);
-        surface.add(gap);
+      const material = new THREE.MeshStandardMaterial({ color: '#303a32', roughness: .8, metalness: .2 });
+      const slab = new THREE.Mesh(new RoundedBoxGeometry(w, 16, d, 2, 3), material);
+      slab.position.y = -8; slab.receiveShadow = true; slab.castShadow = true;
+      surface.add(slab);
+      const model = boardModel(next);
+      if (model) {
+        const photo = catalogPhoto('boards', model.id);
+        if (photo) cancelBoardPhoto = addPhoto(surface, w, d, 0, [photo.src], render);
+      } else {
+        const count = Math.max(2, Math.round(d / 62));
+        for (let i = 1; i < count; i++) {
+          const gap = new THREE.Mesh(new THREE.BoxGeometry(w - 12, .3, Math.min(10, d / count / 3)), new THREE.MeshStandardMaterial({ color: '#111a15', roughness: 1 }));
+          gap.position.set(0, .2, -d / 2 + d * i / count); surface.add(gap);
+        }
       }
     }
     const vertices: number[] = [];
-    for (let x = 0; x <= w; x += 25) vertices.push(x - w / 2, .6, -d / 2, x - w / 2, .6, d / 2);
-    for (let z = 0; z <= d; z += 25) vertices.push(-w / 2, .6, z - d / 2, w / 2, .6, z - d / 2);
-    grid = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)), new THREE.LineBasicMaterial({ color: '#b9c7b0', transparent: true, opacity: .12 }));
+    const line = (x1: number, y1: number, x2: number, y2: number, upper: boolean) => {
+      for (const [xMm,yMm] of [[x1,y1],[x2,y2]]) {
+        const p = boardSurfacePoint({ xMm,yMm },next,upper); vertices.push(p.x,p.y+.6,p.z);
+      }
+    };
+    const regions = profile?.step ? [[0,profile.step.depthMm,true],[profile.step.depthMm,d,false]] as const : [[0,d,false]] as const;
+    for (const [from,to,upper] of regions) {
+      for (let x=0;x<=w;x+=25) line(x,from,x,to,upper);
+      for (let y=Math.ceil(from/25)*25;y<=to;y+=25) line(0,y,w,y,upper);
+    }
+    grid = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(vertices,3)), new THREE.LineBasicMaterial({ color:'#b9c7b0',transparent:true,opacity:.12 }));
     surface.add(grid);
-    const size = Math.max(w, d) * .75 + 100;
-    Object.assign(light.shadow.camera, { left: -size, right: size, top: size, bottom: -size, far: size * 6 });
-    light.position.set(-size * .6, size * 2, size);
-    light.shadow.camera.updateProjectionMatrix();
+    const size = Math.max(w,d)*.75+100;
+    Object.assign(light.shadow.camera,{left:-size,right:size,top:size,bottom:-size,far:size*6});
+    light.position.set(-size*.6,size*2,size); light.shadow.camera.updateProjectionMatrix();
+  }
+
+  function positionPedal(item: BoardItem, next: Board, group: THREE.Group) {
+    const p = pedalSurfacePoint(item,next);
+    group.position.set(p.x,p.y,p.z);
+    group.quaternion.setFromAxisAngle(new THREE.Vector3(1,0,0),boardSurfaceAngle(next));
+    group.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),worldRotation(item.rotationDeg)));
   }
 
   function createPedal(item: BoardItem, key: string): Visual {
@@ -229,11 +253,10 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
         pedals.set(item.instanceId, visual);
       }
       if (drag?.item.instanceId !== item.instanceId) {
-        const world = boardToWorld(item, next);
-        visual.group.position.set(world.x, 0, world.z);
+        positionPedal(item,next,visual.group);
       }
-      visual.group.rotation.y = worldRotation(item.rotationDeg);
-      visual.outline.visible = selectedId === item.instanceId || warnings.ids.has(item.instanceId);
+      const stepWarning = pedalCrossesStep(item,next);
+      visual.outline.visible = selectedId === item.instanceId || warnings.ids.has(item.instanceId) || stepWarning;
       visual.outline.material.color.set(selectedId === item.instanceId ? '#ffc098' : '#d19167');
     }
     if (changedSurface) { resize(); fit(); }
@@ -246,15 +269,31 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     scene.updateMatrixWorld(true);
     raycaster.setFromCamera(new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1), camera);
   }
+  function surfaceNormal() {
+    const angle = board ? boardSurfaceAngle(board) : 0;
+    return new THREE.Vector3(0,Math.cos(angle),Math.sin(angle));
+  }
   function project(clientX: number, clientY: number): Point | undefined {
     if (!board || disposed) return;
     setRay(clientX, clientY);
-    const hit = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
-    return hit ? worldToBoard(hit, board) : undefined;
+    const step = boardRockboard(board)?.step;
+    let fallback: Point | undefined;
+    for (const upper of step ? [true,false] : [false]) {
+      const p = boardSurfacePoint({ xMm:board.widthMm/2,yMm:board.heightMm/2 },board,upper);
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(surfaceNormal(),new THREE.Vector3(p.x,p.y,p.z));
+      const hit = raycaster.ray.intersectPlane(plane,new THREE.Vector3());
+      if (!hit) continue;
+      const point = surfaceToBoard(hit,board);
+      if (!upper) fallback = point;
+      if (point.yMm >= 0 && point.yMm <= board.heightMm && (!step || (upper ? point.yMm <= step.depthMm : point.yMm >= step.depthMm))) return point;
+    }
+    return fallback;
   }
+
   function down(event: PointerEvent) {
     if (drag) { event.stopImmediatePropagation(); return; }
     if (!board || !event.isPrimary || event.button !== 0 || event.shiftKey || event.ctrlKey || event.metaKey) return;
+    if (surfaceNormal().dot(camera.position.clone().sub(controls.target)) <= 0) return;
     setRay(event.clientX, event.clientY);
     const hit = raycaster.intersectObjects([...pedals.values()].map(v => v.body), false)[0];
     if (!hit) { callbacks.onSelect(null); return; }
@@ -266,7 +305,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     controls.enabled = false;
     canvas.setPointerCapture(event.pointerId);
     canvas.style.cursor = 'grabbing';
-    drag = { pointerId: event.pointerId, item, board, start: hit.point.clone(), plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -hit.point.y), screenX: event.clientX, screenY: event.clientY, moved: false, point: { xMm: item.xMm, yMm: item.yMm } };
+    drag = { pointerId: event.pointerId, item, board, start: hit.point.clone(), plane: new THREE.Plane().setFromNormalAndCoplanarPoint(surfaceNormal(),hit.point), screenX: event.clientX, screenY: event.clientY, moved: false, point: { xMm: item.xMm, yMm: item.yMm } };
     callbacks.onSelect(item.instanceId);
     callbacks.onDragging(true);
     host.parentElement?.focus({ preventScroll: true });
@@ -280,8 +319,8 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     if (!hit) return;
     drag.moved = true;
     drag.point = dragOnBoard(drag.item, drag.board, drag.start, hit, snap);
-    const world = boardToWorld(drag.point, drag.board);
-    pedals.get(drag.item.instanceId)?.group.position.set(world.x, 0, world.z);
+    const visual = pedals.get(drag.item.instanceId);
+    if (visual) positionPedal({ ...drag.item, ...drag.point },drag.board,visual.group);
     render();
   }
   function finishDrag(commit: boolean) {
@@ -294,8 +333,8 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     callbacks.onDragging(false);
     if (commit && current.moved) callbacks.onMove(current.item.instanceId, current.point);
     else {
-      const world = boardToWorld(current.item, current.board);
-      pedals.get(current.item.instanceId)?.group.position.set(world.x, 0, world.z);
+      const visual = pedals.get(current.item.instanceId);
+      if (visual) positionPedal(current.item,current.board,visual.group);
       render();
     }
   }
@@ -318,6 +357,13 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
 
   return {
     update, setZoom, fit, project,
+    setClearance(value: boolean) { showClearance = value; if (clearance) clearance.visible = value; render(); },
+    viewUnderside() {
+      if (!board || !boardRockboard(board)) return;
+      finishDrag(false); fit();
+      camera.position.copy(controls.target).addScaledVector(new THREE.Vector3(.35,-.9,1).normalize(),baseDistance);
+      controls.update(); render();
+    },
     dispose() {
       finishDrag(false);
       disposed = true;
