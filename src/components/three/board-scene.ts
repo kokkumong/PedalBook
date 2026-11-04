@@ -14,6 +14,7 @@ type Callbacks = {
   onDragging: (dragging: boolean) => void;
   onZoom: (zoom: number) => void;
   onError: () => void;
+  onViewSide: (side: 'top' | 'bottom') => void;
 };
 type Visual = { group: THREE.Group; body: THREE.Mesh; outline: THREE.LineSegments<THREE.EdgesGeometry, THREE.LineBasicMaterial>; key: string; dispose: () => void };
 type Drag = { pointerId: number; item: BoardItem; board: Board; start: THREE.Vector3; plane: THREE.Plane; screenX: number; screenY: number; moved: boolean; point: Point };
@@ -97,6 +98,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
   let grid: THREE.LineSegments | undefined;
   let clearance: THREE.Group | undefined;
   let showClearance = false;
+  let structureTransparent = false;
   let drag: Drag | null = null;
   let snap = true;
   let disposed = false;
@@ -111,6 +113,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     });
   };
   const change = () => {
+    callbacks.onViewSide(surfaceNormal().dot(camera.position.clone().sub(controls.target)) < 0 ? 'bottom' : 'top');
     const next = baseDistance / camera.position.distanceTo(controls.target);
     if (Number.isFinite(next) && Math.abs(next - zoom) > .0001) {
       zoom = next;
@@ -200,6 +203,21 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     const size = Math.max(w,d)*.75+100;
     Object.assign(light.shadow.camera,{left:-size,right:size,top:size,bottom:-size,far:size*6});
     light.position.set(-size*.6,size*2,size); light.shadow.camera.updateProjectionMatrix();
+    applyStructureOpacity();
+  }
+
+  function applyStructureOpacity() {
+    surface.traverse(object=>{
+      if (!(object instanceof THREE.Mesh) || object.parent === clearance) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        const original = material.userData.originalAppearance ??= { transparent: material.transparent, opacity: material.opacity, depthWrite: material.depthWrite };
+        material.transparent = structureTransparent || original.transparent;
+        material.opacity = structureTransparent ? .2 : original.opacity;
+        material.depthWrite = structureTransparent ? false : original.depthWrite;
+        material.needsUpdate = true;
+      }
+    });
   }
 
   function positionPedal(item: BoardItem, next: Board, group: THREE.Group) {
@@ -304,7 +322,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     const hardware: THREE.Mesh[] = [];
     surface.traverse(object => { if (object instanceof THREE.Mesh && object.parent !== clearance) hardware.push(object); });
     const obstruction = raycaster.intersectObjects(hardware,false)[0];
-    if (obstruction && obstruction.distance < hit.distance - .1) { callbacks.onSelect(null); return; }
+    if (!structureTransparent && obstruction && obstruction.distance < hit.distance - .1) { callbacks.onSelect(null); return; }
     event.stopImmediatePropagation();
     event.preventDefault();
     // Capture-phase interception keeps OrbitControls out of the pedal gesture.
@@ -363,6 +381,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
 
   return {
     update, setZoom, fit, project,
+    setStructureTransparent(value: boolean) { structureTransparent = value; applyStructureOpacity(); render(); },
     setClearance(value: boolean) { showClearance = value; if (clearance) clearance.visible = value; render(); },
     viewUnderside() {
       if (!board) return;

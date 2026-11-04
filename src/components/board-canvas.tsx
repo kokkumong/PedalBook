@@ -7,8 +7,10 @@ import { boardModel, clampPosition, placementWarnings, viewportTransform } from 
 import type { Board, BoardItem, Point } from '../domain/board.ts';
 import { catalogPhoto, containImage } from '../domain/photos.ts';
 import { useCanvasPedalPhoto } from '../hooks/use-pedal-photo';
+import { boardRockboard } from '../domain/board-3d.ts';
+import { rockboardBays } from '../domain/rockboard.ts';
 
-type Props = { board: Board; selectedId: string | null; zoom: number; pan: { x: number; y: number }; grid: boolean; snap: boolean;
+type Props = { board: Board; side: 'top' | 'bottom'; selectedId: string | null; zoom: number; pan: { x: number; y: number }; grid: boolean; snap: boolean;
   onSelect: (id: string | null) => void; onMove: (id: string, point: Point) => void; onPan: (pan: { x: number; y: number }) => void;
   onSize: (size: { width: number; height: number }) => void; onDragging: (dragging: boolean) => void };
 
@@ -23,7 +25,7 @@ function PedalNode({ item, board, selected, warning, snap, onSelect, onMove, onD
     onDragMove={event => { const node = event.target; const point = clampPosition(item, board, { xMm: node.x(), yMm: node.y() }, snap); node.position({ x: point.xMm, y: point.yMm }); }}
     onDragEnd={event => { const node = event.target; const point = clampPosition(item, board, { xMm: node.x(), yMm: node.y() }, snap); onMove(item.instanceId, point); onDragging(false); }}>
     <Rect width={width} height={height} fill={image && isPhoto ? 'transparent' : item.pedal.color} cornerRadius={4} shadowColor="#000" shadowBlur={6} shadowOffsetY={3} shadowOpacity={.3}/>
-    {image ? <CanvasImage image={image} {...imageBounds} opacity={item.mountSide === 'bottom' ? .4 : 1}/> : <Text text={item.pedal.name} y={height / 2 - 5} width={width} fontSize={9} align="center" fill={item.pedal.ink}/>}
+    {image ? <CanvasImage image={image} {...imageBounds}/> : <Text text={item.pedal.name} y={height / 2 - 5} width={width} fontSize={9} align="center" fill={item.pedal.ink}/>}
     {item.mountSide === 'bottom' && <><Rect width={width} height={height} stroke="#8edec9" strokeWidth={1.5} dash={[4,3]} fill="#24554e44" listening={false}/><Text text="하부" x={3} y={3} fontSize={9} padding={2} fill="#b3ffe9" listening={false}/></>}
     {item.owned && <Circle x={width - 6} y={height - 6} radius={2.5} fill="#b0cf9f" stroke="#2e4834" strokeWidth={.7}/>}
     {(selected || warning) && <Rect x={-4} y={-4} width={width + 8} height={height + 8} cornerRadius={6} stroke={selected ? '#ffb68d' : '#bd8362'} strokeWidth={selected ? 1.5 : 1} dash={selected ? undefined : [3, 3]} listening={false}/>}
@@ -31,7 +33,7 @@ function PedalNode({ item, board, selected, warning, snap, onSelect, onMove, onD
   </Group>;
 }
 
-function BoardSurface({ board }: { board: Board }) {
+function BoardSurface({ board, side }: { board: Board; side: 'top' | 'bottom' }) {
   const model = boardModel(board);
   const source = model ? catalogPhoto('boards', model.id)?.src : undefined;
   const [loaded, setLoaded] = useState<{ source: string; image: HTMLImageElement } | null>(null);
@@ -46,6 +48,12 @@ function BoardSurface({ board }: { board: Board }) {
   const image = loaded?.source === source ? loaded?.image : undefined;
   const railCount = Math.max(2, Math.round(board.heightMm / 62));
   const railHeight = (board.heightMm - 13 * (railCount - 1) - 10) / railCount;
+  if (side === 'bottom') {
+    const profile = boardRockboard(board);
+    return <Group listening={false}><Rect width={board.widthMm} height={board.heightMm} fill="#18221e" stroke="#81957e" strokeWidth={1} cornerRadius={5}/>
+      {profile ? rockboardBays(profile).map(bay=><Group key={bay.index}><Rect x={bay.xMm-bay.widthMm/2} y={(profile.depthMm-profile.cavityDepthMm)/2} width={bay.widthMm} height={profile.cavityDepthMm} fill="#365b4c55" stroke="#7dbba3" strokeWidth={.8} dash={[4,3]}/><Text x={bay.xMm-bay.widthMm/2} y={profile.depthMm-16} width={bay.widthMm} text={`${bay.widthMm} mm`} align="center" fontSize={7} fill="#8db49f"/></Group>) : <Text text="하부 구조 미확인 · 배치 미리보기" x={8} y={8} fontSize={8} fill="#b6cbb8"/>}
+    </Group>;
+  }
   return <Group>
     <Rect width={board.widthMm} height={board.heightMm} cornerRadius={5} fill={image ? 'transparent' : '#151d19'} stroke="#606c5e" strokeWidth={1} shadowBlur={14} shadowColor="#000" shadowOpacity={.3} shadowOffsetY={6}/>
     {image ? <CanvasImage image={image} {...containImage(image.width, image.height, board.widthMm, board.heightMm)} listening={false}/> : <>
@@ -85,10 +93,10 @@ export default function BoardCanvas(props: Props) {
             {Array.from({ length: Math.floor(board.widthMm / 100) + 1 }, (_, i) => <Group key={i}><Text x={i * 100 - 15} y={-27} width={30} text={String(i * 100)} fontSize={6} align="center" fill="#95a28e"/><Line points={[i * 100, -15, i * 100, -21]} stroke="#65715f" strokeWidth={.6}/></Group>)}
             {Array.from({ length: Math.floor(board.heightMm / 100) + 1 }, (_, i) => <Text key={i} x={-38} y={i * 100 - 3} width={24} text={String(i * 100)} fontSize={6} align="right" fill="#95a28e"/>)}
           </Group>
-          <BoardSurface board={board}/>
+          <BoardSurface board={board} side={props.side}/>
           {grid && <Group listening={false}>{Array.from({ length: Math.floor(board.widthMm / 25) + 1 }, (_, i) => <Line key={`x${i}`} points={[i * 25, 0, i * 25, board.heightMm]} stroke="#b3bda8" opacity={.08} strokeWidth={.6}/>)}{Array.from({ length: Math.floor(board.heightMm / 25) + 1 }, (_, i) => <Line key={`y${i}`} points={[0, i * 25, board.widthMm, i * 25]} stroke="#b3bda8" opacity={.08} strokeWidth={.6}/>)}</Group>}
           <Text x={board.widthMm - 180} y={board.heightMm - 13} width={165} text={`PEDALBOOK  /  ${board.widthMm} × ${board.heightMm}`} align="right" fontSize={5} letterSpacing={1} fill="#84917a" listening={false}/>
-          {[...board.items].sort((a,b)=>Number(a.instanceId === selectedId)-Number(b.instanceId === selectedId) || Number(a.mountSide !== 'bottom')-Number(b.mountSide !== 'bottom')).map(item => <PedalNode key={item.instanceId} {...props} item={item} selected={item.instanceId === selectedId} warning={warnings.ids.has(item.instanceId)}/>)}
+          {board.items.filter(item=>(item.mountSide ?? 'top') === props.side).sort((a,b)=>Number(a.instanceId === selectedId)-Number(b.instanceId === selectedId)).map(item => <PedalNode key={item.instanceId} {...props} item={item} selected={item.instanceId === selectedId} warning={warnings.ids.has(item.instanceId)}/>)}
         </Group>
       </Layer>
     </Stage>

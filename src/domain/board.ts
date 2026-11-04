@@ -119,9 +119,17 @@ export function resizeBoard(board: Board, widthMm: number, heightMm: number): Bo
   const next = parseBoard({ ...board, widthMm, heightMm, modelId: undefined });
   return { ...next, items: next.items.map(item => ({ ...item, ...clampPosition(item, next, item) })) };
 }
+export function createCustomBoard(board: Board, name: string, widthMm: number, heightMm: number): Board {
+  // Changing the foundation must not silently relocate existing equipment.
+  const next = { ...board, name, widthMm, heightMm };
+  delete next.modelId;
+  return parseBoard(next);
+}
 export function viewportTransform(board: Board, width: number, height: number, zoom: number, pan: { x: number; y: number }) {
-  const scale = Math.min(Math.max(1, width - 90) / board.widthMm, Math.max(1, height - 120) / board.heightMm) * zoom;
-  return { scale, x: (width - board.widthMm * scale) / 2 + pan.x, y: (height - board.heightMm * scale) / 2 + pan.y };
+  // Reserve room for the floating toolbar/rulers above and zoom controls below.
+  const top = 120, bottom = 64;
+  const scale = Math.min(Math.max(1, width - 90) / board.widthMm, Math.max(1, height - top - bottom) / board.heightMm) * zoom;
+  return { scale, x: (width - board.widthMm * scale) / 2 + pan.x, y: top + (height - top - bottom - board.heightMm * scale) / 2 + pan.y };
 }
 export function screenToMm(point: { x: number; y: number }, transform: { x: number; y: number; scale: number }): Point {
   return { xMm: (point.x - transform.x) / transform.scale, yMm: (point.y - transform.y) / transform.scale };

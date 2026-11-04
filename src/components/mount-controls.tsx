@@ -16,9 +16,9 @@ export function MountControls({ item, board, onSide, onHeight }: {
     <span className="field-label">장착 위치</span>
     <div className="mount-side" role="group" aria-label="장착 위치">
       <button aria-pressed={!bottom} onClick={()=>onSide('top')}>상판</button>
-      <button aria-pressed={bottom} disabled={!supported && !bottom} onClick={()=>onSide('bottom')}>보드 아래</button>
+      <button aria-pressed={bottom} onClick={()=>onSide('bottom')}>보드 아래</button>
     </div>
-    {!supported && <p>하부 배치는 RockBoard 공식 규격에서 지원해요.</p>}
+    {!supported && <p>하부 미리보기로 배치할 수 있어요. 이 보드의 실제 하부 구조·높이는 확인되지 않았어요.</p>}
     {bottom && <p>하부 시점에서 직접 드래그하거나 방향키로 이동하세요. 상판 아래에 2mm 부착 여유를 두고 표시해요.</p>}
     <form onSubmit={event=>{ event.preventDefault(); const value=Number(height); if (Number.isFinite(value) && value>=1 && value<=500) onHeight(value); }}>
       <label htmlFor="equipment-height">장비 높이 <span>mm</span></label>

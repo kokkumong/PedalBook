@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CATALOG, searchCatalog } from '../src/domain/catalog.ts';
-import { addItem, emptyBoard, sampleBoard, parseBoard, parseBoardFile, clampPosition, updateItem, placementWarnings, resizeBoard, viewportTransform, screenToMm, MAX_PEDALS } from '../src/domain/board.ts';
+import { addItem, emptyBoard, sampleBoard, parseBoard, parseBoardFile, clampPosition, updateItem, placementWarnings, resizeBoard, createCustomBoard, viewportTransform, screenToMm, MAX_PEDALS } from '../src/domain/board.ts';
 import { budget, marketState, parsePrice, searchPhrase } from '../src/domain/market.ts';
 import type { MarketQuote } from '../src/domain/market.ts';
 import { loadBoard, saveBoard, decodeEnvelope, LEGACY_KEY, STORAGE_KEY } from '../src/domain/storage.ts';
@@ -50,6 +50,15 @@ test('oversized pedal remains physically sized and is reported after board resiz
   const board = resizeBoard(addItem(emptyBoard(), wide, 'wide'), 150, 150);
   assert.equal(board.items[0].pedal.widthMm, 250); assert.equal(placementWarnings(board).outside, 1);
   assert.throws(() => resizeBoard(board, 0, 150));
+});
+test('custom board preserves equipment placement, underside, height and budget even outside its new boundary', () => {
+  const original = updateItem(sampleBoard(), sampleBoard().items[0].instanceId, { mountSide: 'bottom', physicalHeightMm: 32, manualPriceKrw: 75000, owned: true, rotationDeg: 90 });
+  const next = createCustomBoard({ ...original, modelId: 'previous-model' }, '  My board  ', 150, 100);
+  assert.equal(next.name, 'My board'); assert.equal(next.modelId, undefined);
+  assert.deepEqual(next.items, original.items); assert.ok(placementWarnings(next).outside > 0);
+  assert.deepEqual(parseBoardFile(JSON.stringify(next)), next);
+  for (const dimensions of [[49,100],[100,2541],[NaN,100]]) assert.throws(()=>createCustomBoard(original,'Board',...dimensions as [number,number]));
+  assert.throws(()=>createCustomBoard(original,' ',600,320));
 });
 test('catalog aliases and model versions are retained in search phrases', () => {
   assert.equal(searchCatalog('보스 DS1', '전체')[0]?.id, 'boss-ds1');
