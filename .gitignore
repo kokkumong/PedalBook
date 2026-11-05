@@ -11,3 +11,8 @@ artifacts/
 playwright-report/
 test-results/
 *.sql.gz
+.next/
+out/
+*.tsbuildinfo
+.cache/
+src/catalog-snapshot.json.tmp
