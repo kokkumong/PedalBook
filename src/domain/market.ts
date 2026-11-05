@@ -4,12 +4,42 @@ import type { Pedal } from './catalog.ts';
 export const MULE_MARKET_URL = 'https://www.mule.co.kr/bbs/market/sell';
 export const searchPhrase = (pedal: Pedal) => `${pedal.brand === 'CUSTOM' ? '' : pedal.brand + ' '}${pedal.name}`.normalize('NFKC').replace(/\s+/g, ' ').trim();
 
-// Confirmed through Mule's public search UI on 2026-10-31.
-// Model-only defaults also find Korean brand spellings; the user can refine it.
-export const defaultMuleQuery = (pedal: Pedal) => pedal.name.normalize('NFKC').trim();
-export function muleSearchUrl(query: string, sellingOnly = true): string | null {
-  const term = query.normalize('NFKC').replace(/\s+/g, ' ').trim();
-  if (!term || term.length > 120) return null;
+// Mule's public search form truncates queries to 20 characters (2026-11-05).
+export const MULE_QUERY_LIMIT = 20;
+const normalizeQuery = (value: string) => value.normalize('NFKC').replace(/\s+/g, ' ').trim();
+const queryLength = (value: string) => Array.from(value).length;
+
+export function defaultMuleQuery(pedal: Pedal): string {
+  let name = normalizeQuery(pedal.name);
+  const brand = normalizeQuery(pedal.brand);
+  if (brand && name.toLowerCase().startsWith(`${brand.toLowerCase()} `)) name = name.slice(brand.length).trim();
+  // Color editions do not identify the circuit; retain other parentheses (e.g. V2).
+  name = name.replace(/\s*\([^)]*\b(?:white|black|pink|red|blue|green|gold|silver|color|colour)\b[^)]*\)/gi, '')
+    .replace(/\s+(?:guitar effects processor|power supply)$/i, '').trim();
+  if (!name) name = normalizeQuery(pedal.name) || brand;
+  if (queryLength(name) <= MULE_QUERY_LIMIT) return name;
+
+  const words = name.split(' ');
+  const model = words.find(word => /[a-z]/i.test(word) && /\d/.test(word) && !/^(?:v|mk|rev)\d+$/i.test(word));
+  const version = words.find(word => /^(?:v\d+|mk(?:\d+|i{1,3}|iv)|rev\d+)$/i.test(word));
+  if (model && queryLength(model) <= MULE_QUERY_LIMIT) {
+    const withVersion = version && version !== model ? `${model} ${version}` : model;
+    return queryLength(withVersion) <= MULE_QUERY_LIMIT ? withVersion : model;
+  }
+  // Keep whole words and reserve room for a generation marker when available.
+  const suffix = version ? ` ${version}` : '';
+  const room = MULE_QUERY_LIMIT - queryLength(suffix);
+  let core = '';
+  for (const word of words.filter(word => word !== version)) {
+    const next = core ? `${core} ${word}` : word;
+    if (queryLength(next) > room) break;
+    core = next;
+  }
+  return core ? `${core}${suffix}` : Array.from(name).slice(0, MULE_QUERY_LIMIT).join('');
+}
+export function muleSearchUrl(query: string, sellingOnly = false): string | null {
+  const term = normalizeQuery(query);
+  if (!term || queryLength(term) > MULE_QUERY_LIMIT) return null;
   const url = new URL(MULE_MARKET_URL);
   url.search = new URLSearchParams({ page: '1', map: 'list', mode: 'list', qf: 'title', qs: term,
     ct1: '이펙터', sell_status: sellingOnly ? '판매중' : '', of: 'wdate', od: 'desc', andor: 'and', v: 'l' }).toString();

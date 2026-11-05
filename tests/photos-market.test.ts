@@ -31,14 +31,32 @@ test('photo fits the mm frame without changing its aspect ratio or footprint', (
   assert.ok(fit.x >= 0 && fit.y >= 0 && fit.x + fit.width <= 101.6 && fit.y + fit.height <= 114.3);
 });
 test('Mule links match observed category/status/title filters and encode all query text as one value', () => {
-  for (const term of ['DS-1', 'blueSky V2', '보스 CE-2W', 'A&B + Mini #2? sell_status=판매완료']) {
+  for (const term of ['DS-1', 'blueSky V2', '보스 CE-2W', 'A&B + Mini #2?']) {
     const url = new URL(muleSearchUrl(term)!);
     assert.equal(url.origin, 'https://www.mule.co.kr'); assert.equal(url.pathname, '/bbs/market/sell');
     assert.equal(url.searchParams.get('qs'), term); assert.equal(url.searchParams.get('ct1'), '이펙터');
-    assert.equal(url.searchParams.get('sell_status'), '판매중'); assert.equal(url.searchParams.get('qf'), 'title');
+    assert.equal(url.searchParams.get('sell_status'), ''); assert.equal(url.searchParams.get('qf'), 'title');
     assert.equal(url.searchParams.getAll('sell_status').length, 1); assert.equal(url.hash, '');
   }
-  assert.equal(new URL(muleSearchUrl('DS-1', false)!).searchParams.get('sell_status'), '');
-  assert.equal(muleSearchUrl('   '), null); assert.equal(muleSearchUrl('a'.repeat(121)), null);
+  assert.equal(new URL(muleSearchUrl('DS-1', true)!).searchParams.get('sell_status'), '판매중');
+  assert.equal(muleSearchUrl('   '), null); assert.equal(muleSearchUrl('a'.repeat(21)), null);
   assert.equal(defaultMuleQuery(CATALOG.find(p => p.id === 'strymon-bluesky')!), 'blueSky V2');
+});
+
+test('automatic Mule queries keep core models and generations within the search limit', () => {
+  const query = (name: string) => defaultMuleQuery({ ...CATALOG[0], brand: 'BOSS', name });
+  assert.equal(query('BOSS GT-1000CORE Guitar Effects Processor'), 'GT-1000CORE');
+  assert.equal(query('ISO-10 Power Supply'), 'ISO-10');
+  assert.equal(query('DRV (White No3)'), 'DRV');
+  assert.equal(query('Triangle Big Muff Pi'), 'Triangle Big Muff Pi');
+  assert.equal(query('Deluxe Memory Man Tap Tempo V2'), 'Deluxe Memory Man V2');
+  assert.equal(query('Digital Delay DD-200'), 'Digital Delay DD-200');
+  assert.equal(query('Digital Delay DD-200 Special Edition'), 'DD-200');
+  assert.equal(query('Super Overdrive (V2)'), 'Super Overdrive (V2)');
+  assert.equal(query('가'.repeat(21)), '가'.repeat(20));
+  for (const pedal of CATALOG) {
+    const term = defaultMuleQuery(pedal);
+    assert.ok(term.length > 0 && Array.from(term).length <= 20, pedal.name);
+    assert.ok(muleSearchUrl(term), pedal.name);
+  }
 });
