@@ -8,6 +8,7 @@ import type { Board, BoardItem, Point } from '../domain/board.ts';
 import { catalogPhoto, containImage } from '../domain/photos.ts';
 import { useCanvasPedalPhoto } from '../hooks/use-pedal-photo';
 import { boardRockboard } from '../domain/board-3d.ts';
+import { PatchCables } from './patch-cables';
 import { rockboardBays } from '../domain/rockboard.ts';
 
 type Props = { board: Board; side: 'top' | 'bottom'; selectedId: string | null; zoom: number; pan: { x: number; y: number }; grid: boolean; snap: boolean;
@@ -64,6 +65,7 @@ function BoardSurface({ board, side }: { board: Board; side: 'top' | 'bottom' })
 }
 
 export default function BoardCanvas(props: Props) {
+  const [cableDragging,setCableDragging]=useState(false);
   const host = useRef<HTMLDivElement>(null), stage = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ width: 700, height: 500 });
   const panStart = useRef<{ x: number; y: number; pan: Props['pan'] } | null>(null);
@@ -96,7 +98,8 @@ export default function BoardCanvas(props: Props) {
           <BoardSurface board={board} side={props.side}/>
           {grid && <Group listening={false}>{Array.from({ length: Math.floor(board.widthMm / 25) + 1 }, (_, i) => <Line key={`x${i}`} points={[i * 25, 0, i * 25, board.heightMm]} stroke="#b3bda8" opacity={.08} strokeWidth={.6}/>)}{Array.from({ length: Math.floor(board.heightMm / 25) + 1 }, (_, i) => <Line key={`y${i}`} points={[0, i * 25, board.widthMm, i * 25]} stroke="#b3bda8" opacity={.08} strokeWidth={.6}/>)}</Group>}
           <Text x={board.widthMm - 180} y={board.heightMm - 13} width={165} text={`PEDALBOOK  /  ${board.widthMm} × ${board.heightMm}`} align="right" fontSize={5} letterSpacing={1} fill="#84917a" listening={false}/>
-          {board.items.filter(item=>(item.mountSide ?? 'top') === props.side).sort((a,b)=>Number(a.instanceId === selectedId)-Number(b.instanceId === selectedId)).map(item => <PedalNode key={item.instanceId} {...props} item={item} selected={item.instanceId === selectedId} warning={warnings.ids.has(item.instanceId)}/>)}
+          {!cableDragging && <PatchCables board={board} side={props.side}/>}
+          {board.items.filter(item=>(item.mountSide ?? 'top') === props.side).sort((a,b)=>Number(a.instanceId === selectedId)-Number(b.instanceId === selectedId)).map(item => <PedalNode key={item.instanceId} {...props} onDragging={value=>{setCableDragging(value);props.onDragging(value);}} item={item} selected={item.instanceId === selectedId} warning={warnings.ids.has(item.instanceId)}/>)}
         </Group>
       </Layer>
     </Stage>

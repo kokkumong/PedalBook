@@ -263,3 +263,43 @@ summary:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
 @media(max-width:680px) {
   .studio-workspace .inspector.pedal-menu { left: 10px; right: auto; top: auto; bottom: 84px; width: min(278px,calc(100% - 20px)); max-height: calc(100% - 190px); }
 }
+
+.studio-workspace .signal-drawer { width: 350px; }
+.signal-drawer .drawer-heading strong { display: block; margin-top: 5px; font-size: 17px; }
+.signal-content { padding: 14px 16px 20px; }
+.signal-intro { font-size: 12px; line-height: 1.8; margin: 0 0 14px; color: #60705b; }
+.signal-add { display: flex; gap: 6px; }
+.signal-add select { min-width: 0; flex: 1; width: 100%; border: 1px solid #cdd6c5; border-radius: 6px; padding: 7px; background: white; font-size: 11px; }
+.signal-empty { padding: 25px 8px; text-align: center; font-size: 11px; color: #87927d; line-height: 1.8; }
+.signal-list { list-style: none; padding: 0; margin: 16px 0; }
+.signal-list>li { position: relative; border: 1px solid #d9dfd1; border-radius: 8px; background: white; padding: 10px; margin-bottom: 12px; }
+.signal-list>li:not(:last-child)::after { content: '↓'; position: absolute; bottom: -13px; left: 19px; color: #9aab8b; font-size: 11px; }
+.signal-item-head { display: flex; align-items: center; gap: 8px; }
+.signal-index { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; background: #ebf0e4; color: #667c56; font: 11px var(--mono); flex-shrink: 0; }
+.signal-name { flex: 1; min-width: 0; }
+.signal-name small { font-size: 8px; color: #8a957f; }
+.signal-name strong { display: block; font-size: 12px; overflow-wrap: anywhere; line-height: 1.5; }
+.signal-order { display: flex; }
+.signal-order button { width: 24px; height: 30px; border-radius: 4px; font-size: 15px; }
+.signal-order button:hover:enabled { background: #eef1e9; }
+.signal-ports { margin-top: 7px; }
+.signal-ports summary, .signal-settings summary { font-size: 10px; color: #74846a; cursor: pointer; padding: 4px 0; }
+.signal-ports p, .signal-settings p { font-size: 10px; line-height: 1.7; color: #8a947f; }
+.signal-port { display: flex; gap: 8px; align-items: center; margin: 9px 0; }
+.signal-port>strong { font: 10px var(--mono); width: 26px; }
+.signal-port select { border: 1px solid #d4ddca; border-radius: 5px; padding: 6px; font-size: 11px; min-width: 72px; background: #fafcf6; }
+.signal-number { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10px; color: #718065; margin: 8px 0; }
+.signal-number input { width: 68px; padding: 6px; border: 1px solid #d4ddca; border-radius: 5px; background: white; color: #435d37; font: 11px var(--mono); }
+.signal-port .signal-number { margin: 0; }
+.signal-settings { border-top: 1px solid #dce3d4; border-bottom: 1px solid #dce3d4; padding: 10px 0; }
+.signal-settings summary span { font: 9px var(--mono); float: right; margin-top: 1px; }
+.signal-visible { display: flex; gap: 7px; align-items: center; font-size: 11px; margin: 14px 0; color: #5e7452; }
+.signal-visible input { accent-color: #577548; }
+.signal-routes>strong { font-size: 12px; }
+.signal-route { margin: 10px 0; padding: 9px; border-radius: 5px; background: #eff3e9; }
+.signal-route>div { display: flex; align-items: center; gap: 7px; font: 10px var(--mono); color: #617456; }
+.signal-route>div>span { width: 8px; height: 8px; border-radius: 50%; }
+.signal-route b { margin-left: auto; font-size: 10px; font-weight: 500; }
+.signal-warning { color: #aa6548; font-size: 10px; line-height: 1.7; margin: 7px 0 0; }
+.signal-note { color: #8b9681; font-size: 10px; line-height: 1.8; margin: 16px 0 0; }
+@media(max-width:680px) { .studio-workspace .signal-drawer { width: min(350px,calc(100% - 20px)); } }

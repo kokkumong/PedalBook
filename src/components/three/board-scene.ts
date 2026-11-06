@@ -6,6 +6,7 @@ import type { Board, BoardItem, Point } from '../../domain/board.ts';
 import { boardSurfaceAngle, boardSurfacePoint, surfaceToBoard, boardRockboard, pedalSurfacePoint, pedalCrossesStep, worldRotation, dragOnBoard, fitDistance, itemElevation, undersideWarnings } from '../../domain/board-3d.ts';
 import { catalogPhoto, containImage, PEDAL_PHOTOS, pedalPhoto } from '../../domain/photos.ts';
 import { pedalImage } from '../../domain/artwork.ts';
+import { createPatchGeometry } from './patch-geometry.ts';
 import { createRockboardGeometry } from './rockboard-geometry.ts';
 import { bossProfile } from '../../domain/boss.ts';
 import { bossLabelTexture, createBossGeometry } from './boss-geometry.ts';
@@ -23,7 +24,7 @@ type Drag = { pointerId: number; item: BoardItem; board: Board; start: THREE.Vec
 
 function disposeTree(root: THREE.Object3D) {
   root.traverse(object => {
-    if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) {
+    if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
       object.geometry.dispose();
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       for (const material of materials) {
@@ -92,6 +93,9 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
   scene.add(light);
   const surface = new THREE.Group();
   scene.add(surface);
+  let cables = new THREE.Group();
+  scene.add(cables);
+  let cableKey = '';
   const pedals = new Map<string, Visual>();
   const raycaster = new THREE.Raycaster();
   let board: Board | undefined;
@@ -287,6 +291,8 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
       visual.outline.visible = selectedId === item.instanceId || warnings.ids.has(item.instanceId) || stepWarning;
       visual.outline.material.color.set(selectedId === item.instanceId ? '#ffc098' : '#d19167');
     }
+    const nextCableKey=JSON.stringify([next.widthMm,next.heightMm,next.modelId,next.signalChain,next.items.map(item=>[item.instanceId,item.pedal.widthMm,item.pedal.heightMm,item.xMm,item.yMm,item.rotationDeg,item.mountSide,itemElevation(item).mm])]);
+    if(nextCableKey!==cableKey){cableKey=nextCableKey;disposeTree(cables);cables=createPatchGeometry(next);scene.add(cables);}
     if (changedSurface) { resize(); fit(); }
     render();
   }
@@ -352,6 +358,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     const hit = raycaster.ray.intersectPlane(drag.plane, new THREE.Vector3());
     if (!hit) return;
     drag.moved = true;
+    cables.visible = false;
     drag.point = dragOnBoard(drag.item, drag.board, drag.start, hit, snap);
     const visual = pedals.get(drag.item.instanceId);
     if (visual) positionPedal({ ...drag.item, ...drag.point },drag.board,visual.group);
@@ -361,6 +368,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     const current = drag;
     if (!current) return;
     drag = null;
+    cables.visible = true;
     controls.enabled = true;
     canvas.style.cursor = 'grab';
     if (canvas.hasPointerCapture(current.pointerId)) canvas.releasePointerCapture(current.pointerId);
@@ -417,6 +425,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
       cancelBoardPhoto?.();
       pedals.forEach(visual => visual.dispose());
       disposeTree(surface);
+      disposeTree(cables);
       light.shadow.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
