@@ -2,7 +2,7 @@ import { readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 let count = 0;
-for (const directory of ['prototype', 'examples', 'scripts', 'tests']) {
+for (const directory of ['prototype', 'examples', 'scripts', 'scripts/catalog', 'tests']) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     if (!entry.isFile() || !/\.(js|mjs)$/.test(entry.name)) continue;
     const result = spawnSync(process.execPath, ['--check', `${directory}/${entry.name}`], { stdio: 'inherit' });
