@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { cableLayoutSchema } from './manual-cables.ts';
 import { signalSchema } from './signal-config.ts';
 import { CATALOG, SOURCE_BOARDS, PEDALS_BY_ID } from './catalog.ts';
 import type { Pedal } from './catalog.ts';
@@ -34,6 +35,7 @@ const boardSchema = z.object({
   modelId: text(100).optional(),
   items: z.array(itemSchema).max(MAX_PEDALS),
   signalChain: signalSchema.optional(),
+  cableLayout: cableLayoutSchema.optional(),
 }).refine(board => new Set(board.items.map(i => i.instanceId)).size === board.items.length, '페달 인스턴스 ID가 중복됩니다.')
   .refine(board => !board.signalChain || board.signalChain.nodes.every(node => board.items.some(item => item.instanceId === node.instanceId)), '시그널 체인의 페달이 보드에 없습니다.');
 

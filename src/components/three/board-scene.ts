@@ -291,7 +291,7 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
       visual.outline.visible = selectedId === item.instanceId || warnings.ids.has(item.instanceId) || stepWarning;
       visual.outline.material.color.set(selectedId === item.instanceId ? '#ffc098' : '#d19167');
     }
-    const nextCableKey=JSON.stringify([next.widthMm,next.heightMm,next.modelId,next.signalChain,next.items.map(item=>[item.instanceId,item.pedal.widthMm,item.pedal.heightMm,item.xMm,item.yMm,item.rotationDeg,item.mountSide,itemElevation(item).mm])]);
+    const nextCableKey=JSON.stringify([next.widthMm,next.heightMm,next.modelId,next.cableLayout]);
     if(nextCableKey!==cableKey){cableKey=nextCableKey;disposeTree(cables);cables=createPatchGeometry(next);scene.add(cables);}
     if (changedSurface) { resize(); fit(); }
     render();
@@ -358,7 +358,6 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     const hit = raycaster.ray.intersectPlane(drag.plane, new THREE.Vector3());
     if (!hit) return;
     drag.moved = true;
-    cables.visible = false;
     drag.point = dragOnBoard(drag.item, drag.board, drag.start, hit, snap);
     const visual = pedals.get(drag.item.instanceId);
     if (visual) positionPedal({ ...drag.item, ...drag.point },drag.board,visual.group);
@@ -368,7 +367,6 @@ export function createBoardScene(host: HTMLDivElement, callbacks: Callbacks) {
     const current = drag;
     if (!current) return;
     drag = null;
-    cables.visible = true;
     controls.enabled = true;
     canvas.style.cursor = 'grab';
     if (canvas.hasPointerCapture(current.pointerId)) canvas.releasePointerCapture(current.pointerId);

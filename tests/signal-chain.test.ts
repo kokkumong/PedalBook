@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
 import { sampleBoard, parseBoard, removeItem, updateItem } from '../src/domain/board.ts';
 import type { Board } from '../src/domain/board.ts';
 import { emptySignal, signalNode } from '../src/domain/signal-config.ts';
@@ -66,13 +65,11 @@ test('cross-surface connections are flagged instead of pretending to route throu
   const board=updateItem(wiredBoard(),'sample-3',{mountSide:'bottom'});const route=patchCables(board)[0];
   assert.equal(route.routed,false);assert.ok(route.warnings.some(w=>w.includes('관통')));
 });
-test('3D cables use the same jack ends and dispose-able finite geometry; hidden cables add no meshes',()=>{
+test('legacy jack conversion remains compatible but no longer renders automatic cables',()=>{
   const board=wiredBoard(),route=patchCables(board)[0],points=cableWorldPoints(route,board);
   assert.deepEqual(points[0],portWorld(route.from,board,board.signalChain!.plugLengthMm));
   assert.deepEqual(points.at(-1),portWorld(route.to,board,board.signalChain!.plugLengthMm));
-  const geometry=createPatchGeometry(board);let meshes=0;
-  geometry.traverse(object=>{if(object instanceof THREE.Mesh){meshes++;const positions=object.geometry.getAttribute('position');for(let i=0;i<positions.count;i++)assert.ok(Number.isFinite(positions.getX(i)+positions.getY(i)+positions.getZ(i)));object.geometry.dispose();const materials=Array.isArray(object.material)?object.material:[object.material];materials.forEach(m=>m.dispose());}});
-  assert.equal(meshes,9);assert.equal(createPatchGeometry({...board,signalChain:{...board.signalChain!,visible:false}}).children.length,0);
+  assert.equal(createPatchGeometry(board).children.length,0);
 });
 
 test('input and output plugs on the same pedal cannot occupy the same housing space',()=>{

@@ -8,10 +8,11 @@ import type { Board, BoardItem, Point } from '../domain/board.ts';
 import { catalogPhoto, containImage } from '../domain/photos.ts';
 import { useCanvasPedalPhoto } from '../hooks/use-pedal-photo';
 import { boardRockboard } from '../domain/board-3d.ts';
+import { cablePoint } from '../domain/manual-cables.ts';
 import { PatchCables } from './patch-cables';
 import { rockboardBays } from '../domain/rockboard.ts';
 
-type Props = { board: Board; side: 'top' | 'bottom'; selectedId: string | null; zoom: number; pan: { x: number; y: number }; grid: boolean; snap: boolean;
+type Props = { placingCable:boolean; cableStart:Point|null; selectedCableId:string|null; onCablePoint:(point:Point)=>void; onCableSelect:(id:string)=>void; onCableEndpoint:(id:string,end:'start'|'end',point:Point)=>void; board: Board; side: 'top' | 'bottom'; selectedId: string | null; zoom: number; pan: { x: number; y: number }; grid: boolean; snap: boolean;
   onSelect: (id: string | null) => void; onMove: (id: string, point: Point) => void; onPan: (pan: { x: number; y: number }) => void;
   onSize: (size: { width: number; height: number }) => void; onDragging: (dragging: boolean) => void };
 
@@ -65,7 +66,7 @@ function BoardSurface({ board, side }: { board: Board; side: 'top' | 'bottom' })
 }
 
 export default function BoardCanvas(props: Props) {
-  const [cableDragging,setCableDragging]=useState(false);
+  const [cableHover,setCableHover]=useState<Point|null>(null);
   const host = useRef<HTMLDivElement>(null), stage = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ width: 700, height: 500 });
   const panStart = useRef<{ x: number; y: number; pan: Props['pan'] } | null>(null);
@@ -74,17 +75,19 @@ export default function BoardCanvas(props: Props) {
     const observer = new ResizeObserver(entries => { const { width, height } = entries[0].contentRect; setSize({ width, height }); props.onSize({ width, height }); });
     observer.observe(node); return () => observer.disconnect();
   }, [props.onSize]);
-  const { board, selectedId, onSelect, onPan, zoom, pan, grid } = props;
+  const { board, selectedId, onSelect, onPan, zoom, pan, grid, snap } = props;
   const transform = viewportTransform(board, size.width, size.height, zoom, pan);
   const warnings = placementWarnings(board);
   const clearSelection = (event: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-    if (event.target.findAncestor('.pedal', true)) return;
+    if (props.placingCable || event.target.findAncestor('.pedal', true) || event.target.findAncestor('.manual-cable', true)) return;
     onSelect(null);
     const pointer = event.target.getStage()?.getPointerPosition();
     if (pointer && zoom > 1) panStart.current = { ...pointer, pan: { ...pan } };
   };
+  const cablePointer = () => {const pointer=stage.current?.getPointerPosition();return pointer?cablePoint({xMm:(pointer.x-transform.x)/transform.scale,yMm:(pointer.y-transform.y)/transform.scale},snap):null;};
+  const placeCable = (event:Konva.KonvaEventObject<MouseEvent|TouchEvent>) => {event.cancelBubble=true;const point=cablePointer();if(point)props.onCablePoint(point);};
   const finishPan = () => { panStart.current = null; };
-  return <div className="konva-host" ref={host} aria-hidden="true">
+  return <div className="konva-host" style={{cursor:props.placingCable?'crosshair':undefined}} ref={host} aria-hidden="true">
     <Stage ref={stage} width={size.width} height={size.height} onMouseDown={clearSelection} onTouchStart={clearSelection}
       onMouseMove={() => { const start = panStart.current, point = stage.current?.getPointerPosition(); if (start && point) onPan({ x: start.pan.x + point.x - start.x, y: start.pan.y + point.y - start.y }); }}
       onTouchMove={() => { const start = panStart.current, point = stage.current?.getPointerPosition(); if (start && point) onPan({ x: start.pan.x + point.x - start.x, y: start.pan.y + point.y - start.y }); }}
@@ -98,8 +101,15 @@ export default function BoardCanvas(props: Props) {
           <BoardSurface board={board} side={props.side}/>
           {grid && <Group listening={false}>{Array.from({ length: Math.floor(board.widthMm / 25) + 1 }, (_, i) => <Line key={`x${i}`} points={[i * 25, 0, i * 25, board.heightMm]} stroke="#b3bda8" opacity={.08} strokeWidth={.6}/>)}{Array.from({ length: Math.floor(board.heightMm / 25) + 1 }, (_, i) => <Line key={`y${i}`} points={[0, i * 25, board.widthMm, i * 25]} stroke="#b3bda8" opacity={.08} strokeWidth={.6}/>)}</Group>}
           <Text x={board.widthMm - 180} y={board.heightMm - 13} width={165} text={`PEDALBOOK  /  ${board.widthMm} × ${board.heightMm}`} align="right" fontSize={5} letterSpacing={1} fill="#84917a" listening={false}/>
-          {!cableDragging && <PatchCables board={board} side={props.side}/>}
-          {board.items.filter(item=>(item.mountSide ?? 'top') === props.side).sort((a,b)=>Number(a.instanceId === selectedId)-Number(b.instanceId === selectedId)).map(item => <PedalNode key={item.instanceId} {...props} onDragging={value=>{setCableDragging(value);props.onDragging(value);}} item={item} selected={item.instanceId === selectedId} warning={warnings.ids.has(item.instanceId)}/>)}
+          {board.items.filter(item=>(item.mountSide ?? 'top') === props.side).sort((a,b)=>Number(a.instanceId === selectedId)-Number(b.instanceId === selectedId)).map(item => <PedalNode key={item.instanceId} {...props} item={item} selected={item.instanceId === selectedId} warning={warnings.ids.has(item.instanceId)}/>)}
+          <PatchCables board={board} side={props.side} selectedId={props.selectedCableId} scale={transform.scale} snap={snap} onSelect={props.onCableSelect} onEndpoint={props.onCableEndpoint} onDragging={props.onDragging}/>
+          {props.placingCable && <>
+            <Rect x={-transform.x/transform.scale} y={-transform.y/transform.scale} width={size.width/transform.scale} height={size.height/transform.scale} fill="rgba(0,0,0,0)" onMouseDown={e=>{e.cancelBubble=true;}} onTouchStart={e=>{e.cancelBubble=true;}} onMouseMove={()=>setCableHover(cablePointer())} onClick={placeCable} onTap={placeCable}/>
+            {props.cableStart && <Group listening={false}>
+              {cableHover && <Line points={[props.cableStart.xMm,props.cableStart.yMm,cableHover.xMm,cableHover.yMm]} stroke="#efb567" strokeWidth={board.cableLayout?.cableDiameterMm??4} dash={[5,4]}/>}
+              <Circle x={props.cableStart.xMm} y={props.cableStart.yMm} radius={6/transform.scale} fill="#efb567" stroke="#fff" strokeWidth={1/transform.scale}/>
+            </Group>}
+          </>}
         </Group>
       </Layer>
     </Stage>

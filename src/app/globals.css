@@ -303,3 +303,21 @@ summary:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
 .signal-warning { color: #aa6548; font-size: 10px; line-height: 1.7; margin: 7px 0 0; }
 .signal-note { color: #8b9681; font-size: 10px; line-height: 1.8; margin: 16px 0 0; }
 @media(max-width:680px) { .studio-workspace .signal-drawer { width: min(350px,calc(100% - 20px)); } }
+
+.manual-cable-list { list-style: none; padding: 0; margin: 16px 0; }
+.manual-cable-list li { display: flex; align-items: center; gap: 6px; margin: 7px 0; }
+.manual-cable-list li>button:first-child { flex: 1; display: flex; gap: 10px; align-items: center; text-align: left; padding: 12px; border: 1px solid #d8e0ce; border-radius: 7px; }
+.manual-cable-list .selected { background: #eef2e5; border-color: #81946d!important; }
+.manual-cable-list i { width: 18px; height: 4px; border-radius: 3px; }
+.manual-cable-list span { font-size: 12px; }
+.manual-cable-list small { display: block; font-size: 10px; color: #859277; margin-top: 4px; }
+.manual-cable-list li>button:last-child { padding: 10px; color: #ae7058; }
+.manual-cable-details { margin: 14px 0; }
+.manual-cable-details summary { cursor: pointer; font-size: 11px; padding: 12px 0; color: #74846a; }
+.manual-cable-details fieldset { border: 1px solid #d8e0ce; margin: 7px 0; border-radius: 6px; }
+.manual-cable-details legend { font-size: 11px; color: #74846a; }
+.cable-placement { position: absolute; z-index: 8; top: 76px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid #bfa074; border-radius: 9px; background: #293d32f5; color: #ffe5ba; box-shadow: 0 3px 16px #0003; white-space: nowrap; }
+.cable-placement span { font-size: 13px; font-weight: 600; }
+.cable-placement small { font-size: 10px; color: #b8c2ad; }
+.cable-placement button { border-left: 1px solid #71816b; padding-left: 12px; font-size: 11px; }
+@media(max-width:680px) { .cable-placement { top: 112px; gap: 9px; } .cable-placement small { display: none; } }
